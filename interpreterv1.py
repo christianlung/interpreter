@@ -59,11 +59,10 @@ class Interpreter(InterpreterBase):
     
     #handles +/- expressions
     def evaluate_binary_operator(self, expression_node):
-        #do type checking right here
         first_operator = self.evaluate_expression(expression_node.get('op1'))
         second_operator = self.evaluate_expression(expression_node.get('op2'))
 
-        if expression_node.get('op1').elem_type == 'string' or expression_node.get('op2').elem_type == 'string':
+        if type(first_operator) is str or type(second_operator) is str:
             super().error(
                 ErrorType.TYPE_ERROR,
                 "Incompatible types for arithmetic operation",
@@ -89,9 +88,15 @@ class Interpreter(InterpreterBase):
                  
     
     def func_statement_call(self, statement_node):
-        if statement_node.get('name') == 'print':
+        func_name = statement_node.get('name')
+        if  func_name == 'print':
             arguments = statement_node.get('args')
             print_expression = ""
             for arg in arguments:
                 print_expression += str(self.evaluate_expression(arg))   
             super().output(print_expression)
+        else:
+             super().error(
+                  ErrorType.NAME_ERROR,
+                  f"{func_name} is not a defined function"
+             )
