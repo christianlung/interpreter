@@ -23,27 +23,26 @@ class Interpreter(InterpreterBase):
     def run_statement(self, statement_node):
         if statement_node.elem_type == '=':
             self.do_assignment(statement_node)
-        elif statement_node.elem_type == 'fcall':
-            self.func_call(statement_node)
+        elif statement_node.elem_type == 'fcall':   #print()
+            self.func_statement_call(statement_node)
         
     #assigns variable to their expression value
     def do_assignment(self, statement_node):
         target_var_name = statement_node.get('name')
-        print(target_var_name)
         source_node = statement_node.get('expression')
         resulting_value = self.evaluate_expression(source_node)
         self.dictionary[target_var_name] = resulting_value
-        # print(target_var_name, ' is assigned to ', resulting_value)
     
-    #handles types of expressions
+    #handles types of expressions ... variables, ints, strings, operators, fcalls
     def evaluate_expression(self, expression_node):
         if expression_node.elem_type == 'var':
             return self.dictionary[expression_node.get('name')]
-                # return expression_node.get('name')
         elif expression_node.elem_type == 'int' or expression_node.elem_type == 'string':
                 return expression_node.get('val')
         elif expression_node.elem_type == '+' or expression_node.elem_type == '-':
                 return self.evaluate_binary_operator(expression_node)
+        elif expression_node.elem_type == 'fcall':  #inputi()
+                return self.func_expression_call(expression_node)
     
     #handles +/- expressions
     def evaluate_binary_operator(self, expression_node):
@@ -53,11 +52,19 @@ class Interpreter(InterpreterBase):
             return first_operator + second_operator
         elif expression_node.elem_type == '-':
              return first_operator - second_operator
+    
+    def func_expression_call(self, expression_node):
+         if expression_node.get('name') == 'inputi':
+              if len(expression_node.get('args')) != 0:
+                   super().output(self.evaluate_expression(expression_node.get('args')[0]))
+              return super().get_input()
+             
                  
     
-    # def func_call(self, func_node):
-    #     arguments = func_node.get('args')
-    #     print_expression
-    #     for arg in arguments:
-    #         print_expression += str(self.evaluate_expression(arg))   
-    #     print(print_expression)
+    def func_statement_call(self, statement_node):
+        if statement_node.get('name') == 'print':
+            arguments = statement_node.get('args')
+            print_expression = ""
+            for arg in arguments:
+                print_expression += str(self.evaluate_expression(arg))   
+            super().output(print_expression)
