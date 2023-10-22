@@ -4,10 +4,9 @@ from intbase import ErrorType
 from element import Element
 
 class Interpreter(InterpreterBase):
-    dictionary = dict()                     #dictionary of all existing variables to values
-
     def __init__(self, console_output=True, inp=None, trace_output=False):
         super().__init__(console_output, inp)   # call InterpreterBase's constructor
+        self.dictionary = dict()                     #dictionary of all existing variables to values
 
     #parses program string into program node and runs main node
     def run(self, program):
@@ -83,9 +82,7 @@ class Interpreter(InterpreterBase):
             else:
                 if len(expression_node.get('args')) != 0:
                     super().output(self.evaluate_expression(expression_node.get('args')[0]))
-                return super().get_input()
-             
-                 
+                return int(super().get_input())
     
     def func_statement_call(self, statement_node):
         func_name = statement_node.get('name')
