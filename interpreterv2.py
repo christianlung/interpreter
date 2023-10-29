@@ -8,7 +8,8 @@ from brewparse import parse_program
 class Interpreter(InterpreterBase):
     # constants
     NIL_VALUE = create_value(InterpreterBase.NIL_DEF)
-    BIN_OPS = {"+", "-"}
+    BIN_OPS = {"+", "-", "*", "/", "==", "!=", "<", "<=", ">", ">=", "||", "&&"}
+    UN_OPS = {"!", "neg"}
 
     # methods
     def __init__(self, console_output=True, inp=None, trace_output=False):
@@ -17,10 +18,11 @@ class Interpreter(InterpreterBase):
         self.__setup_ops()
 
     # run a program that's provided in a string
-    # usese the provided Parser found in brewparse.py to parse the program
+    # uses the provided Parser found in brewparse.py to parse the program
     # into an abstract syntax tree (ast)
     def run(self, program):
         ast = parse_program(program)
+        print(ast)
         self.__set_up_function_table(ast)
         main_func = self.__get_func_by_name("main")
         self.env = EnvironmentManager()
@@ -77,7 +79,10 @@ class Interpreter(InterpreterBase):
             )
         inp = super().get_input()
         if call_ast.get("name") == "inputi":
-            return Value(Type.INT, int(inp))
+            try:
+                return Value(Type.INT, int(inp))
+            except ValueError:
+                return Value(Type.STRING, inp)
         # we can support inputs here later
 
     def __assign(self, assign_ast):
@@ -86,10 +91,14 @@ class Interpreter(InterpreterBase):
         self.env.set(var_name, value_obj)
 
     def __eval_expr(self, expr_ast):
+        if expr_ast.elem_type == InterpreterBase.BOOL_DEF:
+            return Value(Type.BOOL, expr_ast.get("val"))
         if expr_ast.elem_type == InterpreterBase.INT_DEF:
             return Value(Type.INT, expr_ast.get("val"))
         if expr_ast.elem_type == InterpreterBase.STRING_DEF:
             return Value(Type.STRING, expr_ast.get("val"))
+        if expr_ast.elem_type == InterpreterBase.NIL_DEF:
+            return InterpreterBase.NIL_DEF
         if expr_ast.elem_type == InterpreterBase.VAR_DEF:
             var_name = expr_ast.get("name")
             val = self.env.get(var_name)
@@ -98,24 +107,28 @@ class Interpreter(InterpreterBase):
             return val
         if expr_ast.elem_type == InterpreterBase.FCALL_DEF:
             return self.__call_func(expr_ast)
-        if expr_ast.elem_type in Interpreter.BIN_OPS:
+        if expr_ast.elem_type in Interpreter.BIN_OPS or expr_ast.elem_type in Interpreter.UN_OPS:
             return self.__eval_op(expr_ast)
 
     def __eval_op(self, arith_ast):
         left_value_obj = self.__eval_expr(arith_ast.get("op1"))
-        right_value_obj = self.__eval_expr(arith_ast.get("op2"))
-        if left_value_obj.type() != right_value_obj.type():
-            super().error(
-                ErrorType.TYPE_ERROR,
-                f"Incompatible types for {arith_ast.elem_type} operation",
-            )
         if arith_ast.elem_type not in self.op_to_lambda[left_value_obj.type()]:
-            super().error(
-                ErrorType.TYPE_ERROR,
-                f"Incompatible operator {arith_ast.get_type} for type {left_value_obj.type()}",
-            )
+                super().error(
+                    ErrorType.TYPE_ERROR,
+                    f"Incompatible operator {arith_ast.get_type} for type {left_value_obj.type()}",
+                )
         f = self.op_to_lambda[left_value_obj.type()][arith_ast.elem_type]
-        return f(left_value_obj, right_value_obj)
+        if arith_ast.elem_type not in Interpreter.UN_OPS:
+            right_value_obj = self.__eval_expr(arith_ast.get("op2"))
+            if left_value_obj.type() != right_value_obj.type():
+                super().error(
+                    ErrorType.TYPE_ERROR,
+                    f"Incompatible types for {arith_ast.elem_type} operation",
+                )
+            return f(left_value_obj, right_value_obj)
+        return f(left_value_obj)
+            
+        
 
     def __setup_ops(self):
         self.op_to_lambda = {}
@@ -127,4 +140,54 @@ class Interpreter(InterpreterBase):
         self.op_to_lambda[Type.INT]["-"] = lambda x, y: Value(
             x.type(), x.value() - y.value()
         )
-        # add other operators here later for int, string, bool, etc
+        self.op_to_lambda[Type.INT]["*"] = lambda x, y: Value(
+            x.type(), x.value() * y.value()
+        )
+        self.op_to_lambda[Type.INT]["/"] = lambda x, y: Value(
+            x.type(), x.value() // y.value()
+        )
+        self.op_to_lambda[Type.INT]["=="] = lambda x, y: Value(
+            Type.BOOL, x.value() == y.value()
+        )
+        self.op_to_lambda[Type.INT]["!="] = lambda x, y: Value(
+            Type.BOOL, x.value() != y.value()
+        )
+        self.op_to_lambda[Type.INT]["<"] = lambda x, y: Value(
+            Type.BOOL, x.value() < y.value()
+        )
+        self.op_to_lambda[Type.INT]["<="] = lambda x, y: Value(
+            Type.BOOL, x.value() <= y.value()
+        )
+        self.op_to_lambda[Type.INT][">"] = lambda x, y: Value(
+            Type.BOOL, x.value() > y.value()
+        )
+        self.op_to_lambda[Type.INT][">="] = lambda x, y: Value(
+            Type.BOOL, x.value() >= y.value()
+        )
+        self.op_to_lambda[Type.INT]["neg"] = lambda x: Value(
+            Type.INT, x.value() * -1
+        )
+
+        # set up operations on strings
+        self.op_to_lambda[Type.STRING] = {}
+        self.op_to_lambda[Type.STRING]["+"] = lambda x, y: Value(
+            x.type(), x.value() + y.value()
+        )
+
+        # set up operation on booleans
+        self.op_to_lambda[Type.BOOL] = {}
+        self.op_to_lambda[Type.BOOL]["||"] = lambda x, y: Value(
+            x.type(), x.value() or y.value()
+        )
+        self.op_to_lambda[Type.BOOL]["&&"] = lambda x, y: Value(
+            x.type(), x.value() and y.value()
+        )
+
+interpreter = Interpreter()
+program = """
+func main(){
+    x = -5;
+    print(x*25);
+}
+"""
+interpreter.run(program)
