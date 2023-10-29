@@ -22,7 +22,6 @@ class Interpreter(InterpreterBase):
     # into an abstract syntax tree (ast)
     def run(self, program):
         ast = parse_program(program)
-        print(ast)
         self.__set_up_function_table(ast)
         main_func = self.__get_func_by_name("main")
         self.env = EnvironmentManager()
@@ -134,60 +133,28 @@ class Interpreter(InterpreterBase):
         self.op_to_lambda = {}
         # set up operations on integers
         self.op_to_lambda[Type.INT] = {}
-        self.op_to_lambda[Type.INT]["+"] = lambda x, y: Value(
-            x.type(), x.value() + y.value()
-        )
-        self.op_to_lambda[Type.INT]["-"] = lambda x, y: Value(
-            x.type(), x.value() - y.value()
-        )
-        self.op_to_lambda[Type.INT]["*"] = lambda x, y: Value(
-            x.type(), x.value() * y.value()
-        )
-        self.op_to_lambda[Type.INT]["/"] = lambda x, y: Value(
-            x.type(), x.value() // y.value()
-        )
-        self.op_to_lambda[Type.INT]["=="] = lambda x, y: Value(
-            Type.BOOL, x.value() == y.value()
-        )
-        self.op_to_lambda[Type.INT]["!="] = lambda x, y: Value(
-            Type.BOOL, x.value() != y.value()
-        )
-        self.op_to_lambda[Type.INT]["<"] = lambda x, y: Value(
-            Type.BOOL, x.value() < y.value()
-        )
-        self.op_to_lambda[Type.INT]["<="] = lambda x, y: Value(
-            Type.BOOL, x.value() <= y.value()
-        )
-        self.op_to_lambda[Type.INT][">"] = lambda x, y: Value(
-            Type.BOOL, x.value() > y.value()
-        )
-        self.op_to_lambda[Type.INT][">="] = lambda x, y: Value(
-            Type.BOOL, x.value() >= y.value()
-        )
-        self.op_to_lambda[Type.INT]["neg"] = lambda x: Value(
-            Type.INT, x.value() * -1
-        )
+        self.op_to_lambda[Type.INT]["+"] = lambda x, y: Value( x.type(), x.value() + y.value() )
+        self.op_to_lambda[Type.INT]["-"] = lambda x, y: Value( x.type(), x.value() - y.value() )
+        self.op_to_lambda[Type.INT]["*"] = lambda x, y: Value( x.type(), x.value() * y.value() )
+        self.op_to_lambda[Type.INT]["/"] = lambda x, y: Value( x.type(), x.value() // y.value() )
+        self.op_to_lambda[Type.INT]["=="] = lambda x, y: Value( Type.BOOL, x.value() == y.value() )
+        self.op_to_lambda[Type.INT]["!="] = lambda x, y: Value( Type.BOOL, x.value() != y.value() )
+        self.op_to_lambda[Type.INT]["<"] = lambda x, y: Value( Type.BOOL, x.value() < y.value() )
+        self.op_to_lambda[Type.INT]["<="] = lambda x, y: Value( Type.BOOL, x.value() <= y.value() )
+        self.op_to_lambda[Type.INT][">"] = lambda x, y: Value( Type.BOOL, x.value() > y.value() )
+        self.op_to_lambda[Type.INT][">="] = lambda x, y: Value( Type.BOOL, x.value() >= y.value() )
+        self.op_to_lambda[Type.INT]["neg"] = lambda x: Value( Type.INT, x.value() * -1 )
 
         # set up operations on strings
         self.op_to_lambda[Type.STRING] = {}
-        self.op_to_lambda[Type.STRING]["+"] = lambda x, y: Value(
-            x.type(), x.value() + y.value()
-        )
+        self.op_to_lambda[Type.STRING]["+"] = lambda x, y: Value( x.type(), x.value() + y.value() )
+        self.op_to_lambda[Type.STRING]["=="] = lambda x, y: Value( Type.BOOL, x.value() == y.value() )
+        self.op_to_lambda[Type.STRING]["!="] = lambda x, y: Value( Type.BOOL, x.value() != y.value() )
 
         # set up operation on booleans
         self.op_to_lambda[Type.BOOL] = {}
-        self.op_to_lambda[Type.BOOL]["||"] = lambda x, y: Value(
-            x.type(), x.value() or y.value()
-        )
-        self.op_to_lambda[Type.BOOL]["&&"] = lambda x, y: Value(
-            x.type(), x.value() and y.value()
-        )
-
-interpreter = Interpreter()
-program = """
-func main(){
-    x = -5;
-    print(x*25);
-}
-"""
-interpreter.run(program)
+        self.op_to_lambda[Type.BOOL]["||"] = lambda x, y: Value( Type.BOOL, x.value() or y.value() )
+        self.op_to_lambda[Type.BOOL]["&&"] = lambda x, y: Value( Type.BOOL, x.value() and y.value() )
+        self.op_to_lambda[Type.BOOL]["!"] = lambda x: Value( x.type(), not x.value() )
+        self.op_to_lambda[Type.BOOL]["=="] = lambda x,y: Value( Type.BOOL, x.value() == y.value() )
+        self.op_to_lambda[Type.BOOL]["!="] = lambda x,y: Value( Type.BOOL, x.value() != y.value() )
