@@ -117,13 +117,16 @@ class Interpreter(InterpreterBase):
                     f"Incompatible operator {arith_ast.get_type} for type {left_value_obj.type()}",
                 )
         f = self.op_to_lambda[left_value_obj.type()][arith_ast.elem_type]
-        if arith_ast.elem_type not in Interpreter.UN_OPS:
+        if arith_ast.elem_type in Interpreter.BIN_OPS:
             right_value_obj = self.__eval_expr(arith_ast.get("op2"))
             if left_value_obj.type() != right_value_obj.type():
-                super().error(
-                    ErrorType.TYPE_ERROR,
-                    f"Incompatible types for {arith_ast.elem_type} operation",
-                )
+                if arith_ast.elem_type == "==" or arith_ast.elem_type == "!=":
+                    return Value( Type.BOOL, InterpreterBase.FALSE_DEF)
+                else:
+                    super().error(
+                        ErrorType.TYPE_ERROR,
+                        f"Incompatible types for {arith_ast.elem_type} operation",
+                    )
             return f(left_value_obj, right_value_obj)
         return f(left_value_obj)
             
@@ -158,3 +161,14 @@ class Interpreter(InterpreterBase):
         self.op_to_lambda[Type.BOOL]["!"] = lambda x: Value( x.type(), not x.value() )
         self.op_to_lambda[Type.BOOL]["=="] = lambda x,y: Value( Type.BOOL, x.value() == y.value() )
         self.op_to_lambda[Type.BOOL]["!="] = lambda x,y: Value( Type.BOOL, x.value() != y.value() )
+
+interpreter = Interpreter()
+program = """
+func main(){
+    x = 5;
+    y = "hello";
+    print(x==y);
+}
+"""
+
+interpreter.run(program)
