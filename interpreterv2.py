@@ -2,6 +2,7 @@ from env_v1 import EnvironmentManager
 from type_valuev1 import Type, Value, create_value, get_printable
 from intbase import InterpreterBase, ErrorType
 from brewparse import parse_program
+import copy
 
 
 # Main interpreter class
@@ -53,7 +54,7 @@ class Interpreter(InterpreterBase):
                 self.__handle_while(statement)
             elif statement.elem_type == "return":
                 self.__handle_return(statement)
-        return Interpreter.NIL_VALUE
+        return Interpreter.NIL_DEF
 
     def __call_func(self, call_node):
         func_name = call_node.get("name")
@@ -62,7 +63,7 @@ class Interpreter(InterpreterBase):
         elif func_name == "inputi":
             return self.__call_input(call_node)
         elif func_name in self.func_name_to_ast:
-            return self.__run_statements(call_node.get("statements"))
+            return self.__run_statements(self.__get_func_by_name(func_name).get("statements"))
         # add code here later to call other functions
         super().error(ErrorType.NAME_ERROR, f"Function {func_name} not found")
 
@@ -103,7 +104,7 @@ class Interpreter(InterpreterBase):
             return Value(Type.INT, expr_ast.get("val"))
         if expr_ast.elem_type == InterpreterBase.STRING_DEF:
             return Value(Type.STRING, expr_ast.get("val"))
-        if expr_ast.elem_type == InterpreterBase.NIL_DEF:
+        if expr_ast.elem_type == Interpreter.NIL_DEF:
             return Value(Type.NIL, "")
         if expr_ast.elem_type == InterpreterBase.VAR_DEF:
             var_name = expr_ast.get("name")
@@ -160,8 +161,10 @@ class Interpreter(InterpreterBase):
             self.__run_statements(while_node.get("statements"))
     
     def __handle_return(self, return_node):
-        print()
-        #return deep copy of variable in environment
+        expr = return_node.get("expression")
+        if expr is None:
+            return Interpreter.NIL_DEF
+        return copy.deepcopy(self.__eval_expr(expr))
         
 
     def __setup_ops(self):
@@ -196,12 +199,12 @@ class Interpreter(InterpreterBase):
 
 interpreter = Interpreter()
 program = """
+func fact(n) {
+  return n;
+}
+
 func main(){
-    i=3;
-    while(i>0){
-        print(i);
-        i=i-1;
-    }
+    print(fact(5));
 }
 """
 
