@@ -22,6 +22,7 @@ class Interpreter(InterpreterBase):
     # into an abstract syntax tree (ast)
     def run(self, program):
         ast = parse_program(program)
+        print(ast)
         self.__set_up_function_table(ast)
         main_func = self.__get_func_by_name("main")
         self.env = EnvironmentManager()
@@ -46,16 +47,22 @@ class Interpreter(InterpreterBase):
                 self.__call_func(statement)
             elif statement.elem_type == "=":
                 self.__assign(statement)
-
+            elif statement.elem_type == "if":
+                self.__handle_if(statement)
+            elif statement.elem_type == "while":
+                self.__handle_while(statement)
+            elif statement.elem_type == "return":
+                self.__handle_return(statement)
         return Interpreter.NIL_VALUE
 
     def __call_func(self, call_node):
         func_name = call_node.get("name")
         if func_name == "print":
             return self.__call_print(call_node)
-        if func_name == "inputi":
+        elif func_name == "inputi":
             return self.__call_input(call_node)
-
+        elif func_name in self.func_name_to_ast:
+            return self.__run_statements(call_node.get("statements"))
         # add code here later to call other functions
         super().error(ErrorType.NAME_ERROR, f"Function {func_name} not found")
 
@@ -97,7 +104,7 @@ class Interpreter(InterpreterBase):
         if expr_ast.elem_type == InterpreterBase.STRING_DEF:
             return Value(Type.STRING, expr_ast.get("val"))
         if expr_ast.elem_type == InterpreterBase.NIL_DEF:
-            return InterpreterBase.NIL_DEF
+            return Value(Type.NIL, "")
         if expr_ast.elem_type == InterpreterBase.VAR_DEF:
             var_name = expr_ast.get("name")
             val = self.env.get(var_name)
@@ -129,7 +136,32 @@ class Interpreter(InterpreterBase):
                     )
             return f(left_value_obj, right_value_obj)
         return f(left_value_obj)
-            
+    
+    def __handle_if(self, if_node):
+        cond = self.__eval_expr(if_node.get("condition"))   #returns a Value object
+        if cond.type() != Type.BOOL:
+            super().error(
+                        ErrorType.TYPE_ERROR,
+                        f"Condition does not evaluate to Bool",
+                    )
+        if cond.value():
+            self.__run_statements(if_node.get("statements"))
+        elif if_node.get("else_statements") is not None:
+            self.__run_statements(if_node.get("else_statements"))
+
+    def __handle_while(self, while_node):
+        cond = self.__eval_expr(while_node.get("condition"))
+        if cond.type() != Type.BOOL:
+            super().error(
+                        ErrorType.TYPE_ERROR,
+                        f"Condition does not evaluate to Bool",
+                    )
+        while self.__eval_expr(while_node.get("condition")).value():
+            self.__run_statements(while_node.get("statements"))
+    
+    def __handle_return(self, return_node):
+        print()
+        #return deep copy of variable in environment
         
 
     def __setup_ops(self):
@@ -165,9 +197,11 @@ class Interpreter(InterpreterBase):
 interpreter = Interpreter()
 program = """
 func main(){
-    x = 5;
-    y = "hello";
-    print(x==y);
+    i=3;
+    while(i>0){
+        print(i);
+        i=i-1;
+    }
 }
 """
 
