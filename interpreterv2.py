@@ -49,9 +49,13 @@ class Interpreter(InterpreterBase):
             elif statement.elem_type == "=":
                 self.__assign(statement)
             elif statement.elem_type == "if":
-                self.__handle_if(statement)
+                val = self.__handle_if(statement)
+                if val != Interpreter.NIL_DEF:
+                    return val
             elif statement.elem_type == "while":
-                self.__handle_while(statement)
+                val = self.__handle_while(statement)
+                if val != Interpreter.NIL_DEF:
+                    return val
             elif statement.elem_type == "return":
                 expr = statement.get("expression")
                 if expr is None:
@@ -100,7 +104,6 @@ class Interpreter(InterpreterBase):
         # we can support inputs here later
 
     def __assign(self, assign_ast):
-        #make sure you assign to the environment that you retrieved from, ie if a few env back
         var_name = assign_ast.get("name")
         value_obj = self.__eval_expr(assign_ast.get("expression"))
         index = self.__closest_env(var_name)
@@ -165,9 +168,9 @@ class Interpreter(InterpreterBase):
                         f"Condition does not evaluate to Bool",
                     )
         if cond.value():
-            self.__run_statements(if_node.get("statements"))
+            return self.__run_statements(if_node.get("statements"))
         elif if_node.get("else_statements") is not None:
-            self.__run_statements(if_node.get("else_statements"))
+            return self.__run_statements(if_node.get("else_statements"))
 
     def __handle_while(self, while_node):
         cond = self.__eval_expr(while_node.get("condition"))
@@ -177,8 +180,9 @@ class Interpreter(InterpreterBase):
                         f"Condition does not evaluate to Bool",
                     )
         while self.__eval_expr(while_node.get("condition")).value():
-            self.__run_statements(while_node.get("statements"))
-        
+            val = self.__run_statements(while_node.get("statements"))
+            if val != InterpreterBase.NIL_DEF: return val
+        return val
 
     def __setup_ops(self):
         self.op_to_lambda = {}
@@ -209,28 +213,3 @@ class Interpreter(InterpreterBase):
         self.op_to_lambda[Type.BOOL]["!"] = lambda x: Value( x.type(), not x.value() )
         self.op_to_lambda[Type.BOOL]["=="] = lambda x,y: Value( Type.BOOL, x.value() == y.value() )
         self.op_to_lambda[Type.BOOL]["!="] = lambda x,y: Value( Type.BOOL, x.value() != y.value() )
-
-
-interpreter = Interpreter()
-program = """
-func foo(){
-    c=5;
-}
-func main(){
-    foo();
-    print(c);
-}
-"""
-
-interpreter.run(program)
-#cannot use arguments
-
-#what if there is a return statement in if or while loop
-    #do we have to do anything with return values from if or while loop
-
-#do dynamic scoping first, then do accepting of arguments 
-    #accepts arguments when adding parameter to function, use __assign
-
-#ERRORS: WRONG RETURN TYPE FOR IMPLICIT RETURNS
-    #what type of none or nil or interpreter.NIL_DEF should it return
-    #trace it later
