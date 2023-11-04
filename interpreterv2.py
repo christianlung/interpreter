@@ -23,12 +23,10 @@ class Interpreter(InterpreterBase):
     # into an abstract syntax tree (ast)
     def run(self, program):
         ast = parse_program(program)
-        print(ast)
         self.__set_up_function_table(ast)
+        self.envs = []
         main_func = self.__get_func_by_name("main")
-        self.env = EnvironmentManager()     #don't think we need this anymore
         self.__run_statements(main_func.get("statements"))
-        #set up environment, set up index
 
     def __set_up_function_table(self, ast):
         self.func_name_to_ast = {}
@@ -42,7 +40,7 @@ class Interpreter(InterpreterBase):
 
     def __run_statements(self, statements):
         # all statements of a function are held in arg3 of the function AST node
-        #make new environment
+        self.envs.append(EnvironmentManager())  #start of new scope
         for statement in statements:
             if self.trace_output:
                 print(statement)
@@ -57,10 +55,13 @@ class Interpreter(InterpreterBase):
             elif statement.elem_type == "return":
                 expr = statement.get("expression")
                 if expr is None:
+                    self.envs.pop()
                     return Interpreter.NIL_DEF
-                return copy.deepcopy(self.__eval_expr(expr))    #returns Value object
+                ret_expr = self.__eval_expr(expr)
+                self.envs.pop()
+                return copy.deepcopy(ret_expr)    #returns Value object
+        self.envs.pop()
         return Interpreter.NIL_DEF
-        #clean up old environment
 
     def __call_func(self, call_node):
         func_name = call_node.get("name")
@@ -102,7 +103,11 @@ class Interpreter(InterpreterBase):
         #make sure you assign to the environment that you retrieved from, ie if a few env back
         var_name = assign_ast.get("name")
         value_obj = self.__eval_expr(assign_ast.get("expression"))
-        self.env.set(var_name, value_obj)
+        index = self.__closest_env(var_name)
+        if index!=-1:
+            self.envs[index].set(var_name, value_obj)
+        else:
+            self.envs[len(self.envs)-1].set(var_name, value_obj)
 
     def __eval_expr(self, expr_ast):
         if expr_ast.elem_type == InterpreterBase.BOOL_DEF:
@@ -116,14 +121,20 @@ class Interpreter(InterpreterBase):
         if expr_ast.elem_type == InterpreterBase.VAR_DEF:
             #make function to search for variable
             var_name = expr_ast.get("name")
-            val = self.env.get(var_name)
-            if val is None:
+            index = self.__closest_env(var_name)
+            if index==-1:
                 super().error(ErrorType.NAME_ERROR, f"Variable {var_name} not found")
-            return val
+            return self.envs[index].get(var_name)
         if expr_ast.elem_type == InterpreterBase.FCALL_DEF:
             return self.__call_func(expr_ast)
         if expr_ast.elem_type in Interpreter.BIN_OPS or expr_ast.elem_type in Interpreter.UN_OPS:
             return self.__eval_op(expr_ast)
+        
+    def __closest_env(self, var_name):  #returns index of env if found, -1 is not
+        for i in range(len(self.envs)-1, -2, -1):
+            if i==-1: return i
+            if self.envs[i].get(var_name) is not None:
+                return i
 
     def __eval_op(self, arith_ast):
         left_value_obj = self.__eval_expr(arith_ast.get("op1"))
@@ -198,3 +209,28 @@ class Interpreter(InterpreterBase):
         self.op_to_lambda[Type.BOOL]["!"] = lambda x: Value( x.type(), not x.value() )
         self.op_to_lambda[Type.BOOL]["=="] = lambda x,y: Value( Type.BOOL, x.value() == y.value() )
         self.op_to_lambda[Type.BOOL]["!="] = lambda x,y: Value( Type.BOOL, x.value() != y.value() )
+
+
+interpreter = Interpreter()
+program = """
+func foo(){
+    c=5;
+}
+func main(){
+    foo();
+    print(c);
+}
+"""
+
+interpreter.run(program)
+#cannot use arguments
+
+#what if there is a return statement in if or while loop
+    #do we have to do anything with return values from if or while loop
+
+#do dynamic scoping first, then do accepting of arguments 
+    #accepts arguments when adding parameter to function, use __assign
+
+#ERRORS: WRONG RETURN TYPE FOR IMPLICIT RETURNS
+    #what type of none or nil or interpreter.NIL_DEF should it return
+    #trace it later
