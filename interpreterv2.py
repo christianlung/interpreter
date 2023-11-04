@@ -26,8 +26,9 @@ class Interpreter(InterpreterBase):
         print(ast)
         self.__set_up_function_table(ast)
         main_func = self.__get_func_by_name("main")
-        self.env = EnvironmentManager()
+        self.env = EnvironmentManager()     #don't think we need this anymore
         self.__run_statements(main_func.get("statements"))
+        #set up environment, set up index
 
     def __set_up_function_table(self, ast):
         self.func_name_to_ast = {}
@@ -41,6 +42,7 @@ class Interpreter(InterpreterBase):
 
     def __run_statements(self, statements):
         # all statements of a function are held in arg3 of the function AST node
+        #make new environment
         for statement in statements:
             if self.trace_output:
                 print(statement)
@@ -53,8 +55,12 @@ class Interpreter(InterpreterBase):
             elif statement.elem_type == "while":
                 self.__handle_while(statement)
             elif statement.elem_type == "return":
-                self.__handle_return(statement)
+                expr = statement.get("expression")
+                if expr is None:
+                    return Interpreter.NIL_DEF
+                return copy.deepcopy(self.__eval_expr(expr))    #returns Value object
         return Interpreter.NIL_DEF
+        #clean up old environment
 
     def __call_func(self, call_node):
         func_name = call_node.get("name")
@@ -93,6 +99,7 @@ class Interpreter(InterpreterBase):
         # we can support inputs here later
 
     def __assign(self, assign_ast):
+        #make sure you assign to the environment that you retrieved from, ie if a few env back
         var_name = assign_ast.get("name")
         value_obj = self.__eval_expr(assign_ast.get("expression"))
         self.env.set(var_name, value_obj)
@@ -107,6 +114,7 @@ class Interpreter(InterpreterBase):
         if expr_ast.elem_type == Interpreter.NIL_DEF:
             return Value(Type.NIL, "")
         if expr_ast.elem_type == InterpreterBase.VAR_DEF:
+            #make function to search for variable
             var_name = expr_ast.get("name")
             val = self.env.get(var_name)
             if val is None:
@@ -159,12 +167,6 @@ class Interpreter(InterpreterBase):
                     )
         while self.__eval_expr(while_node.get("condition")).value():
             self.__run_statements(while_node.get("statements"))
-    
-    def __handle_return(self, return_node):
-        expr = return_node.get("expression")
-        if expr is None:
-            return Interpreter.NIL_DEF
-        return copy.deepcopy(self.__eval_expr(expr))
         
 
     def __setup_ops(self):
@@ -196,16 +198,3 @@ class Interpreter(InterpreterBase):
         self.op_to_lambda[Type.BOOL]["!"] = lambda x: Value( x.type(), not x.value() )
         self.op_to_lambda[Type.BOOL]["=="] = lambda x,y: Value( Type.BOOL, x.value() == y.value() )
         self.op_to_lambda[Type.BOOL]["!="] = lambda x,y: Value( Type.BOOL, x.value() != y.value() )
-
-interpreter = Interpreter()
-program = """
-func fact(n) {
-  return n;
-}
-
-func main(){
-    print(fact(5));
-}
-"""
-
-interpreter.run(program)
