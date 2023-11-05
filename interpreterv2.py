@@ -26,7 +26,7 @@ class Interpreter(InterpreterBase):
         self.__set_up_function_table(ast)
         self.envs = []
         main_func = self.__get_func_by_name("main")
-        self.__run_statements(main_func.get("statements"))
+        self.__run_statements(main_func, None)
 
     def __set_up_function_table(self, ast):
         self.func_name_to_ast = {}
@@ -38,10 +38,16 @@ class Interpreter(InterpreterBase):
             super().error(ErrorType.NAME_ERROR, f"Function {name} not found")
         return self.func_name_to_ast[name]
 
-    def __run_statements(self, statements):
+#have to make search to find the right function for overloading
+    def __run_statements(self, function, call_args):
         # all statements of a function are held in arg3 of the function AST node
         self.envs.append(EnvironmentManager())  #start of new scope
-        for statement in statements:
+        if call_args is not None:
+            for i in range(len(call_args)):
+                self.envs[len(self.envs)-1].set(function.get("args")[i].get("name"), copy.deepcopy(self.__eval_expr(call_args[i])))
+                # print(call_args[i])
+                # print(self.__eval_expr(call_args[i]))
+        for statement in function.get("statements"):
             if self.trace_output:
                 print(statement)
             if statement.elem_type == InterpreterBase.FCALL_DEF:
@@ -74,7 +80,7 @@ class Interpreter(InterpreterBase):
         elif func_name == "inputi" or func_name=="inputs":
             return self.__call_input(call_node)
         elif func_name in self.func_name_to_ast:
-            return self.__run_statements(self.__get_func_by_name(func_name).get("statements"))
+            return self.__run_statements(self.__get_func_by_name(func_name), call_node.get("args"))
         # add code here later to call other functions
         super().error(ErrorType.NAME_ERROR, f"Function {func_name} not found")
 
@@ -171,9 +177,9 @@ class Interpreter(InterpreterBase):
                         f"Condition does not evaluate to Bool",
                     )
         if cond.value():
-            return self.__run_statements(if_node.get("statements"))
+            return self.__run_statements(if_node, None)
         elif if_node.get("else_statements") is not None:
-            return self.__run_statements(if_node.get("else_statements"))
+            return self.__run_statements(if_node, None)
         else:
             return Interpreter.NIL_VALUE
 
@@ -185,7 +191,7 @@ class Interpreter(InterpreterBase):
                         f"Condition does not evaluate to Bool",
                     )
         while self.__eval_expr(while_node.get("condition")).value():
-            val = self.__run_statements(while_node.get("statements"))
+            val = self.__run_statements(while_node, None)
             if val != Interpreter.NIL_VALUE: return val
         return val
 
@@ -228,19 +234,16 @@ class Interpreter(InterpreterBase):
 interpreter = Interpreter(trace_output=False)
 program = """
 func main() {
-  a = 1;
-  while (a < 10) {
-    print(a);
-    a = a + 1;
-  }
+  print(fact(5));
+}
+
+func fact(n) {
+  if (n <= 1) { return 1; }
+  return n * fact(n-1);
 }
 """
 interpreter.run(program)
 
 
 
-#accepts arguments when adding parameter to function, use __assign
-#How to make argument refer to original variable even if by diff name, ie pass in x but call it parameter y
-#function overloading and arguments
-
-#added consecutive if's and fixed bools, and added inputs
+#NEED TO DO: function overloading (and debugging of functions passing arguments)
