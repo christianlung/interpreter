@@ -45,9 +45,12 @@ class Interpreter(InterpreterBase):
         if call_args is not None:
             for i in range(len(call_args)):
                 self.envs[len(self.envs)-1].set(function.get("args")[i].get("name"), copy.deepcopy(self.__eval_expr(call_args[i])))
-                # print(call_args[i])
-                # print(self.__eval_expr(call_args[i]))
-        for statement in function.get("statements"):
+        if function.elem_type == "if" and not self.__eval_expr(function.get("condition")).value():
+            statements = function.get("else_statements")
+        else:
+            statements = function.get("statements")
+        
+        for statement in statements:
             if self.trace_output:
                 print(statement)
             if statement.elem_type == InterpreterBase.FCALL_DEF:
@@ -176,12 +179,8 @@ class Interpreter(InterpreterBase):
                         ErrorType.TYPE_ERROR,
                         f"Condition does not evaluate to Bool",
                     )
-        if cond.value():
-            return self.__run_statements(if_node, None)
-        elif if_node.get("else_statements") is not None:
-            return self.__run_statements(if_node, None)
-        else:
-            return Interpreter.NIL_VALUE
+        return self.__run_statements(if_node, None)
+        #return Interpreter.NIL_VALUE
 
     def __handle_while(self, while_node):
         cond = self.__eval_expr(while_node.get("condition"))
@@ -234,16 +233,20 @@ class Interpreter(InterpreterBase):
 interpreter = Interpreter(trace_output=False)
 program = """
 func main() {
-  print(fact(5));
+  print(foo(true));
+  print(foo(false));
 }
 
-func fact(n) {
-  if (n <= 1) { return 1; }
-  return n * fact(n-1);
+func foo(x) {
+  if (x) {
+    return true;
+  }
+  else {
+    return 3;
+  }
 }
 """
 interpreter.run(program)
 
 
-
-#NEED TO DO: function overloading (and debugging of functions passing arguments)
+#NEED TO DO: function overloading (and debugging of recursive functions)
