@@ -50,28 +50,28 @@ class Interpreter(InterpreterBase):
                 self.__assign(statement)
             elif statement.elem_type == "if":
                 val = self.__handle_if(statement)
-                if val != Interpreter.NIL_DEF:
+                if val != Interpreter.NIL_VALUE:
                     return val
             elif statement.elem_type == "while":
                 val = self.__handle_while(statement)
-                if val != Interpreter.NIL_DEF:
+                if val != Interpreter.NIL_VALUE:
                     return val
             elif statement.elem_type == "return":
                 expr = statement.get("expression")
                 if expr is None:
                     self.envs.pop()
-                    return Interpreter.NIL_DEF
+                    return Interpreter.NIL_VALUE
                 ret_expr = self.__eval_expr(expr)
                 self.envs.pop()
                 return copy.deepcopy(ret_expr)    #returns Value object
         self.envs.pop()
-        return Interpreter.NIL_DEF
+        return Interpreter.NIL_VALUE
 
     def __call_func(self, call_node):
         func_name = call_node.get("name")
         if func_name == "print":
             return self.__call_print(call_node)
-        elif func_name == "inputi":
+        elif func_name == "inputi" or func_name=="inputs":
             return self.__call_input(call_node)
         elif func_name in self.func_name_to_ast:
             return self.__run_statements(self.__get_func_by_name(func_name).get("statements"))
@@ -101,6 +101,8 @@ class Interpreter(InterpreterBase):
                 return Value(Type.INT, int(inp))
             except ValueError:
                 return Value(Type.STRING, inp)
+        elif call_ast.get("name") == "inputs":
+            return Value(Type.STRING, inp)
         # we can support inputs here later
 
     def __assign(self, assign_ast):
@@ -120,9 +122,8 @@ class Interpreter(InterpreterBase):
         if expr_ast.elem_type == InterpreterBase.STRING_DEF:
             return Value(Type.STRING, expr_ast.get("val"))
         if expr_ast.elem_type == Interpreter.NIL_DEF:
-            return Value(Type.NIL, "")
+            return self.NIL_VALUE
         if expr_ast.elem_type == InterpreterBase.VAR_DEF:
-            #make function to search for variable
             var_name = expr_ast.get("name")
             index = self.__closest_env(var_name)
             if index==-1:
@@ -144,14 +145,16 @@ class Interpreter(InterpreterBase):
         if arith_ast.elem_type not in self.op_to_lambda[left_value_obj.type()]:
                 super().error(
                     ErrorType.TYPE_ERROR,
-                    f"Incompatible operator {arith_ast.get_type} for type {left_value_obj.type()}",
+                    f"Incompatible operator {arith_ast.elem_type} for type {left_value_obj.type()}",
                 )
         f = self.op_to_lambda[left_value_obj.type()][arith_ast.elem_type]
         if arith_ast.elem_type in Interpreter.BIN_OPS:
             right_value_obj = self.__eval_expr(arith_ast.get("op2"))
             if left_value_obj.type() != right_value_obj.type():
-                if arith_ast.elem_type == "==" or arith_ast.elem_type == "!=":
-                    return Value( Type.BOOL, InterpreterBase.FALSE_DEF)
+                if arith_ast.elem_type == "==":
+                    return Value( Type.BOOL, False)
+                elif arith_ast.elem_type == "!=":
+                    return Value( Type.BOOL, True)
                 else:
                     super().error(
                         ErrorType.TYPE_ERROR,
@@ -171,6 +174,8 @@ class Interpreter(InterpreterBase):
             return self.__run_statements(if_node.get("statements"))
         elif if_node.get("else_statements") is not None:
             return self.__run_statements(if_node.get("else_statements"))
+        else:
+            return Interpreter.NIL_VALUE
 
     def __handle_while(self, while_node):
         cond = self.__eval_expr(while_node.get("condition"))
@@ -181,7 +186,7 @@ class Interpreter(InterpreterBase):
                     )
         while self.__eval_expr(while_node.get("condition")).value():
             val = self.__run_statements(while_node.get("statements"))
-            if val != InterpreterBase.NIL_DEF: return val
+            if val != Interpreter.NIL_VALUE: return val
         return val
 
     def __setup_ops(self):
@@ -213,3 +218,29 @@ class Interpreter(InterpreterBase):
         self.op_to_lambda[Type.BOOL]["!"] = lambda x: Value( x.type(), not x.value() )
         self.op_to_lambda[Type.BOOL]["=="] = lambda x,y: Value( Type.BOOL, x.value() == y.value() )
         self.op_to_lambda[Type.BOOL]["!="] = lambda x,y: Value( Type.BOOL, x.value() != y.value() )
+
+        #setup operation on NIL
+        self.op_to_lambda[Type.NIL] = {}
+        self.op_to_lambda[Type.NIL]["=="] = lambda x,y: Value( Type.BOOL, x.type() == y.type()) 
+        self.op_to_lambda[Type.NIL]["!="] = lambda x,y: Value( Type.BOOL, x.type() != y.type()) 
+
+
+interpreter = Interpreter(trace_output=False)
+program = """
+func main() {
+  a = 1;
+  while (a < 10) {
+    print(a);
+    a = a + 1;
+  }
+}
+"""
+interpreter.run(program)
+
+
+
+#accepts arguments when adding parameter to function, use __assign
+#How to make argument refer to original variable even if by diff name, ie pass in x but call it parameter y
+#function overloading and arguments
+
+#added consecutive if's and fixed bools, and added inputs
