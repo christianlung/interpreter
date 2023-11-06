@@ -38,6 +38,7 @@ class Interpreter(InterpreterBase):
             super().error(ErrorType.NAME_ERROR, f"Function {name[1:]} not found")
         return self.func_name_to_ast[name]
 
+#have to make search to find the right function for overloading
     def __run_statements(self, function, call_args):
         # all statements of a function are held in arg3 of the function AST node
         self.envs.append(EnvironmentManager())  #start of new scope
@@ -48,31 +49,35 @@ class Interpreter(InterpreterBase):
             statements = function.get("else_statements")
         else:
             statements = function.get("statements")
-        for statement in statements:
-            if self.trace_output:
-                print(statement)
-            if statement.elem_type == InterpreterBase.FCALL_DEF:
-                self.__call_func(statement)
-            elif statement.elem_type == "=":
-                self.__assign(statement)
-            elif statement.elem_type == "if":
-                val = self.__handle_if(statement)
-                if val != Interpreter.NIL_VALUE:
+
+        # if self.envs[len(self.envs)-1].get("n") is not None and function.elem_type != "if":
+        #     print(str(function.get("name")) + "(" + str(self.envs[len(self.envs)-1].get("n").value()) + ")" + str(len(self.envs)))
+        if statements is not None:
+            for statement in statements:
+                if self.trace_output:
+                    print(statement)
+                if statement.elem_type == InterpreterBase.FCALL_DEF:
+                    self.__call_func(statement)
+                elif statement.elem_type == "=":
+                    self.__assign(statement)
+                elif statement.elem_type == "if":
+                    val = self.__handle_if(statement)
+                    if val != Interpreter.NIL_VALUE:
+                        self.envs.pop()
+                        return val
+                elif statement.elem_type == "while":
+                    val = self.__handle_while(statement)
+                    if val != Interpreter.NIL_VALUE:
+                        self.envs.pop()
+                        return val
+                elif statement.elem_type == "return":
+                    expr = statement.get("expression")
+                    if expr is None:
+                        self.envs.pop()
+                        return Interpreter.NIL_VALUE
+                    ret_expr = self.__eval_expr(expr)
                     self.envs.pop()
-                    return val
-            elif statement.elem_type == "while":
-                val = self.__handle_while(statement)
-                if val != Interpreter.NIL_VALUE:
-                    self.envs.pop()
-                    return val
-            elif statement.elem_type == "return":
-                expr = statement.get("expression")
-                if expr is None:
-                    self.envs.pop()
-                    return Interpreter.NIL_VALUE
-                ret_expr = self.__eval_expr(expr)
-                self.envs.pop()
-                return copy.deepcopy(ret_expr)    #returns Value object
+                    return copy.deepcopy(ret_expr)    #returns Value object
         self.envs.pop()
         return Interpreter.NIL_VALUE
 
