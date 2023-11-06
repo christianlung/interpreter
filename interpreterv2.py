@@ -38,7 +38,6 @@ class Interpreter(InterpreterBase):
             super().error(ErrorType.NAME_ERROR, f"Function {name[1:]} not found")
         return self.func_name_to_ast[name]
 
-#have to make search to find the right function for overloading
     def __run_statements(self, function, call_args):
         # all statements of a function are held in arg3 of the function AST node
         self.envs.append(EnvironmentManager())  #start of new scope
@@ -49,7 +48,6 @@ class Interpreter(InterpreterBase):
             statements = function.get("else_statements")
         else:
             statements = function.get("statements")
-        
         for statement in statements:
             if self.trace_output:
                 print(statement)
@@ -60,10 +58,12 @@ class Interpreter(InterpreterBase):
             elif statement.elem_type == "if":
                 val = self.__handle_if(statement)
                 if val != Interpreter.NIL_VALUE:
+                    self.envs.pop()
                     return val
             elif statement.elem_type == "while":
                 val = self.__handle_while(statement)
                 if val != Interpreter.NIL_VALUE:
+                    self.envs.pop()
                     return val
             elif statement.elem_type == "return":
                 expr = statement.get("expression")
@@ -180,7 +180,6 @@ class Interpreter(InterpreterBase):
                         f"Condition does not evaluate to Bool",
                     )
         return self.__run_statements(if_node, None)
-        #return Interpreter.NIL_VALUE
 
     def __handle_while(self, while_node):
         cond = self.__eval_expr(while_node.get("condition"))
@@ -228,21 +227,3 @@ class Interpreter(InterpreterBase):
         self.op_to_lambda[Type.NIL] = {}
         self.op_to_lambda[Type.NIL]["=="] = lambda x,y: Value( Type.BOOL, x.type() == y.type()) 
         self.op_to_lambda[Type.NIL]["!="] = lambda x,y: Value( Type.BOOL, x.type() != y.type()) 
-
-
-interpreter = Interpreter(trace_output=False)
-program = """
-func main() {
- print(fib(5));
-}
-
-func fib(n) {
- if (n < 3) {
-  return 1;
- } else {
-  return fib(n-2) + fib(n-1);
- }
-}
-"""
-interpreter.run(program)
-#NEED TO DO: debugging of recursion
