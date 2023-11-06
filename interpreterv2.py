@@ -25,17 +25,17 @@ class Interpreter(InterpreterBase):
         ast = parse_program(program)
         self.__set_up_function_table(ast)
         self.envs = []
-        main_func = self.__get_func_by_name("main")
+        main_func = self.__get_func_by_name("0main")
         self.__run_statements(main_func, None)
 
     def __set_up_function_table(self, ast):
         self.func_name_to_ast = {}
         for func_def in ast.get("functions"):
-            self.func_name_to_ast[func_def.get("name")] = func_def
+            self.func_name_to_ast[ str(len(func_def.get("args")))+ func_def.get("name")] = func_def
 
     def __get_func_by_name(self, name):
         if name not in self.func_name_to_ast:
-            super().error(ErrorType.NAME_ERROR, f"Function {name} not found")
+            super().error(ErrorType.NAME_ERROR, f"Function {name[1:]} not found")
         return self.func_name_to_ast[name]
 
 #have to make search to find the right function for overloading
@@ -82,8 +82,8 @@ class Interpreter(InterpreterBase):
             return self.__call_print(call_node)
         elif func_name == "inputi" or func_name=="inputs":
             return self.__call_input(call_node)
-        elif func_name in self.func_name_to_ast:
-            return self.__run_statements(self.__get_func_by_name(func_name), call_node.get("args"))
+        elif (str(len(call_node.get("args")))+func_name) in self.func_name_to_ast:
+            return self.__run_statements(self.__get_func_by_name(str(len(call_node.get("args")))+func_name), call_node.get("args"))
         # add code here later to call other functions
         super().error(ErrorType.NAME_ERROR, f"Function {func_name} not found")
 
@@ -233,20 +233,16 @@ class Interpreter(InterpreterBase):
 interpreter = Interpreter(trace_output=False)
 program = """
 func main() {
-  print(foo(true));
-  print(foo(false));
+ print(fib(5));
 }
 
-func foo(x) {
-  if (x) {
-    return true;
-  }
-  else {
-    return 3;
-  }
+func fib(n) {
+ if (n < 3) {
+  return 1;
+ } else {
+  return fib(n-2) + fib(n-1);
+ }
 }
 """
 interpreter.run(program)
-
-
-#NEED TO DO: function overloading (and debugging of recursive functions)
+#NEED TO DO: debugging of recursion
