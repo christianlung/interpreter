@@ -10,7 +10,8 @@ There are three stages to the project; students are currently at the first. Thus
 - `brewparse.py`, which contains the `parse_program` function to parse Brewin programs
 - `brewlex.py`, which contains helper functions for brewparse.py
 
-Some notes on your submission (for Project 1)
+Some notes on your submission (for Project 2)
+All test cases passed
 
 1. You **must have a top-level, versioned `interpreterv1.py` file** that **exports the `Interpreter` class**. If not, **your code will not run on our autograder**.
 2. You may also submit one or more additional `.py` modules that your interpreter uses, if you decide to break up your solution into multiple `.py` files.
