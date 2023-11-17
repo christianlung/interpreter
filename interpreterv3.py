@@ -193,16 +193,16 @@ class Interpreter(InterpreterBase):
         # set up operations on integers
         self.op_to_lambda[Type.INT] = {}
         self.op_to_lambda[Type.INT]["+"] = lambda x, y: Value(
-            x.type(), x.value() + y.value()
+            Type.INT, int(x.value()) + int(y.value())
         )
         self.op_to_lambda[Type.INT]["-"] = lambda x, y: Value(
-            x.type(), x.value() - y.value()
+            Type.INT, int(x.value()) - int(y.value())
         )
         self.op_to_lambda[Type.INT]["*"] = lambda x, y: Value(
-            x.type(), x.value() * y.value()
+            Type.INT, int(x.value()) * int(y.value())
         )
         self.op_to_lambda[Type.INT]["/"] = lambda x, y: Value(
-            x.type(), x.value() // y.value()
+            Type.INT, int(x.value()) // int(y.value())
         )
         self.op_to_lambda[Type.INT]["=="] = lambda x, y: Value(
             Type.BOOL, y.type() in [Type.BOOL, Type.INT] and bool(x.value()) == bool(y.value())
@@ -223,10 +223,10 @@ class Interpreter(InterpreterBase):
             Type.BOOL, x.value() >= y.value()
         )
         self.op_to_lambda[Type.INT]["&&"] = lambda x, y: Value(
-            x.type(), bool(x.value()) and bool(y.value())
+            Type.BOOL, bool(x.value()) and bool(y.value())
         )
         self.op_to_lambda[Type.INT]["||"] = lambda x, y: Value(
-            x.type(), bool(x.value()) or bool(y.value())
+            Type.BOOL, bool(x.value()) or bool(y.value())
         )
 
         #  set up operations on strings
@@ -253,6 +253,18 @@ class Interpreter(InterpreterBase):
         )
         self.op_to_lambda[Type.BOOL]["!="] = lambda x, y: Value(
             Type.BOOL, y.type() not in [Type.BOOL, Type.INT] or bool(x.value()) != bool(y.value())
+        )
+        self.op_to_lambda[Type.BOOL]["+"] = lambda x, y: Value(
+            Type.INT, int(x.value()) + int(y.value())
+        )
+        self.op_to_lambda[Type.BOOL]["-"] = lambda x, y: Value(
+            Type.INT, int(x.value()) - int(y.value())
+        )
+        self.op_to_lambda[Type.BOOL]["*"] = lambda x, y: Value(
+            Type.INT, int(x.value()) * int(y.value())
+        )
+        self.op_to_lambda[Type.BOOL]["/"] = lambda x, y: Value(
+            Type.INT, int(x.value()) // int(y.value())
         )
 
         #  set up operations on nil
@@ -308,3 +320,41 @@ class Interpreter(InterpreterBase):
             return (ExecStatus.RETURN, Interpreter.NIL_VALUE)
         value_obj = copy.deepcopy(self.__eval_expr(expr_ast))
         return (ExecStatus.RETURN, value_obj)
+    
+interpreter = Interpreter()
+program = """
+func main(){
+    print( true + 6);
+    print( false * 10 );
+    print(true + true);
+    print(6+true);
+    print(10*false);
+    print(false + false);
+}
+"""
+interpreter.run(program)
+
+#handle if and while
+    
+    #change __assign to assign function to variable
+        #figure out how to do functions AND lambdas
+    #don't need to change __do_return, but need to change __eval_expr to be able to 
+    #change call_func and eval_expr for run statements
+    #add functions to op_to_lambda
+    
+
+    #do I need a function_obj instead of a value_obj like in do_return
+
+    #how to call functions through variable
+
+    #lambdas can mutate local variables
+        #maybe handle lambdas later
+    #returned lambdas/functions can't mutate closure
+
+    #comparing functions
+
+    #type coercion, references, allows functions to be stored in variables, allow functions to be compared
+    #type checking, under "COMPARING FUNCTIONS"
+
+
+    #lambdas in eval_expr and do_return
