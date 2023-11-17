@@ -134,15 +134,11 @@ class Interpreter(InterpreterBase):
         self.env.set(var_name, value_obj)
 
     def __eval_expr(self, expr_ast):
-        # print("here expr")
-        # print("type: " + str(expr_ast.elem_type))
         if expr_ast.elem_type == InterpreterBase.NIL_DEF:
-            # print("getting as nil")
             return Interpreter.NIL_VALUE
         if expr_ast.elem_type == InterpreterBase.INT_DEF:
             return Value(Type.INT, expr_ast.get("val"))
         if expr_ast.elem_type == InterpreterBase.STRING_DEF:
-            # print("getting as str")
             return Value(Type.STRING, expr_ast.get("val"))
         if expr_ast.elem_type == InterpreterBase.BOOL_DEF:
             return Value(Type.BOOL, expr_ast.get("val"))
@@ -159,7 +155,7 @@ class Interpreter(InterpreterBase):
         if expr_ast.elem_type == Interpreter.NEG_DEF:
             return self.__eval_unary(expr_ast, Type.INT, lambda x: -1 * x)
         if expr_ast.elem_type == Interpreter.NOT_DEF:
-            return self.__eval_unary(expr_ast, Type.BOOL, lambda x: not x)
+            return self.__eval_unary(expr_ast, Type.BOOL, lambda x: not bool(x))
 
     def __eval_op(self, arith_ast):
         left_value_obj = self.__eval_expr(arith_ast.get("op1"))
@@ -177,25 +173,19 @@ class Interpreter(InterpreterBase):
                 f"Incompatible operator {arith_ast.elem_type} for type {left_value_obj.type()}",
             )
         f = self.op_to_lambda[left_value_obj.type()][arith_ast.elem_type]
-        # print("here eval")
-        # print(arith_ast)
-        # print("evaluating " + str(left_value_obj.type()) + " " + str(arith_ast.elem_type))
-        # print("obj left: " + str(left_value_obj.value()))
         return f(left_value_obj, right_value_obj)
 
     def __compatible_types(self, oper, obj1, obj2):
-        # DOCUMENT: allow comparisons ==/!= of anything against anything
+        # DOCUMENT: allow comparisons ==/!= of anything against anything, allow BOOL and INT comparisons
         if oper in ["==", "!="]:
+            return True
+        if obj1.type() in [Type.BOOL, Type.INT] and obj1.type() in [Type.BOOL, Type.INT]:
             return True
         return obj1.type() == obj2.type()
 
     def __eval_unary(self, arith_ast, t, f):
+        #maybe add type checking in here
         value_obj = self.__eval_expr(arith_ast.get("op1"))
-        if value_obj.type() != t:
-            super().error(
-                ErrorType.TYPE_ERROR,
-                f"Incompatible type for {arith_ast.elem_type} operation",
-            )
         return Value(t, f(value_obj.value()))
 
     def __setup_ops(self):
@@ -215,10 +205,10 @@ class Interpreter(InterpreterBase):
             x.type(), x.value() // y.value()
         )
         self.op_to_lambda[Type.INT]["=="] = lambda x, y: Value(
-            Type.BOOL, x.type() == y.type() and x.value() == y.value()
+            Type.BOOL, y.type() in [Type.BOOL, Type.INT] and bool(x.value()) == bool(y.value())
         )
         self.op_to_lambda[Type.INT]["!="] = lambda x, y: Value(
-            Type.BOOL, x.type() != y.type() or x.value() != y.value()
+            Type.BOOL, y.type() not in [Type.BOOL, Type.INT] or bool(x.value()) != bool(y.value())
         )
         self.op_to_lambda[Type.INT]["<"] = lambda x, y: Value(
             Type.BOOL, x.value() < y.value()
@@ -232,6 +222,13 @@ class Interpreter(InterpreterBase):
         self.op_to_lambda[Type.INT][">="] = lambda x, y: Value(
             Type.BOOL, x.value() >= y.value()
         )
+        self.op_to_lambda[Type.INT]["&&"] = lambda x, y: Value(
+            x.type(), bool(x.value()) and bool(y.value())
+        )
+        self.op_to_lambda[Type.INT]["||"] = lambda x, y: Value(
+            x.type(), bool(x.value()) or bool(y.value())
+        )
+
         #  set up operations on strings
         self.op_to_lambda[Type.STRING] = {}
         self.op_to_lambda[Type.STRING]["+"] = lambda x, y: Value(
@@ -246,16 +243,16 @@ class Interpreter(InterpreterBase):
         #  set up operations on bools
         self.op_to_lambda[Type.BOOL] = {}
         self.op_to_lambda[Type.BOOL]["&&"] = lambda x, y: Value(
-            x.type(), x.value() and y.value()
+            x.type(), bool(x.value()) and bool(y.value())
         )
         self.op_to_lambda[Type.BOOL]["||"] = lambda x, y: Value(
-            x.type(), x.value() or y.value()
+            x.type(), bool(x.value()) or bool(y.value())
         )
         self.op_to_lambda[Type.BOOL]["=="] = lambda x, y: Value(
-            Type.BOOL, x.type() == y.type() and x.value() == y.value()
+            Type.BOOL, y.type() in [Type.BOOL, Type.INT] and bool(x.value()) == bool(y.value())
         )
         self.op_to_lambda[Type.BOOL]["!="] = lambda x, y: Value(
-            Type.BOOL, x.type() != y.type() or x.value() != y.value()
+            Type.BOOL, y.type() not in [Type.BOOL, Type.INT] or bool(x.value()) != bool(y.value())
         )
 
         #  set up operations on nil
@@ -270,12 +267,12 @@ class Interpreter(InterpreterBase):
     def __do_if(self, if_ast):
         cond_ast = if_ast.get("condition")
         result = self.__eval_expr(cond_ast)
-        if result.type() != Type.BOOL:
+        if result.type() not in  [Type.BOOL, Type.INT]:
             super().error(
                 ErrorType.TYPE_ERROR,
                 "Incompatible type for if condition",
             )
-        if result.value():
+        if bool(result.value()):
             statements = if_ast.get("statements")
             status, return_val = self.__run_statements(statements)
             return (status, return_val)
@@ -292,12 +289,12 @@ class Interpreter(InterpreterBase):
         run_while = Interpreter.TRUE_VALUE
         while run_while.value():
             run_while = self.__eval_expr(cond_ast)
-            if run_while.type() != Type.BOOL:
+            if run_while.type() not in [Type.BOOL, Type.INT]:
                 super().error(
                     ErrorType.TYPE_ERROR,
                     "Incompatible type for while condition",
                 )
-            if run_while.value():
+            if bool(run_while.value()):
                 statements = while_ast.get("statements")
                 status, return_val = self.__run_statements(statements)
                 if status == ExecStatus.RETURN:
