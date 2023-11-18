@@ -101,6 +101,16 @@ class Interpreter(InterpreterBase):
             elif func_var.type() == Type.LAMBDA:  #if variable stores a lambda
                 formal_args = func_var.value().args()
                 is_lambda = True
+            else: # if variable does not hold a functino or lambda
+                super().error(
+                    ErrorType.TYPE_ERROR,
+                    f"{func_name} is not a lambda or function",
+                )
+            if len(actual_args) != len(formal_args): # if # of args don't match
+                super().error(
+                    ErrorType.TYPE_ERROR,
+                    f"{func_name} has wrong number of args",
+                )
         else:
             func_ast = self.__get_func_by_name(func_name, len(actual_args)) #if function in table
             formal_args = func_ast.get("args")
@@ -364,15 +374,25 @@ class Interpreter(InterpreterBase):
     
 interpreter = Interpreter()
 program = """
+func foo() {
+  b = 5;
+  f = lambda(b) { print(b); };   /* captures b = 5 */
+  return f;
+}
+
 func main() {
-  y = lambda(x,y) {print(x+y);};
-  y(1,5);
+  x = foo();
+  x(20);   /* prints 100, the call to the lambda has access to b = 5 */
 }
 """
-interpreter.run(program)
-    
-    #handled primitive storing and printing of lambdas and returning a lambda
-        #still can't use variable to call lambda
+
+temp = """
+func main() {
+  y = lambda(x) { print(x); };
+  y(10, 20);   /* ErrorType.TYPE_ERROR since lambda takes 1 arg */
+}
+"""
+interpreter.run(temp)
 
     #lambda and closures
     #refs
