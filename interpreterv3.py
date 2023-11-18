@@ -91,12 +91,19 @@ class Interpreter(InterpreterBase):
             return self.__call_input(call_node)
 
         actual_args = call_node.get("args")
+        #extracting formal args
+        is_lambda = False
         func_var = self.env.get(func_name)
         if func_var is not None:
-            func_ast = self.__get_func_by_name(func_var.value(), len(actual_args))
+            if func_var.type() == Type.FUNCTION: #if variable stores a function
+                func_ast = self.__get_func_by_name(func_var.value(), len(actual_args))
+                formal_args = func_ast.get("args")
+            elif func_var.type() == Type.LAMBDA:  #if variable stores a lambda
+                formal_args = func_var.value().args()
+                is_lambda = True
         else:
-            func_ast = self.__get_func_by_name(func_name, len(actual_args))
-        formal_args = func_ast.get("args")
+            func_ast = self.__get_func_by_name(func_name, len(actual_args)) #if function in table
+            formal_args = func_ast.get("args")
         if len(actual_args) != len(formal_args):
             super().error(
                 ErrorType.NAME_ERROR,
@@ -107,7 +114,10 @@ class Interpreter(InterpreterBase):
             result = copy.deepcopy(self.__eval_expr(actual_ast))
             arg_name = formal_ast.get("name")
             self.env.create(arg_name, result)
-        _, return_val = self.__run_statements(func_ast.get("statements"))
+        if is_lambda:
+            _, return_val = self.__run_statements(func_var.value().stats())
+        else:
+            _, return_val = self.__run_statements(func_ast.get("statements"))
         self.env.pop()
         return return_val
 
@@ -351,4 +361,3 @@ class Interpreter(InterpreterBase):
             return (ExecStatus.RETURN, Interpreter.NIL_VALUE)
         value_obj = copy.deepcopy(self.__eval_expr(expr_ast))
         return (ExecStatus.RETURN, value_obj)
-   
