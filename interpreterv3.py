@@ -47,7 +47,7 @@ class Interpreter(InterpreterBase):
 
     def __get_func_by_name(self, name, num_params):
         if name not in self.func_name_to_ast:
-            super().error(ErrorType.NAME_ERROR, f"Function {name} not found")
+            super().error(ErrorType.TYPE_ERROR, f"Function {name} not found")
         candidate_funcs = self.func_name_to_ast[name]
         if num_params not in candidate_funcs:
             super().error(
@@ -288,6 +288,15 @@ class Interpreter(InterpreterBase):
             Type.BOOL, x.type() != y.type() or x.value() != y.value()
         )
 
+        # set up operations on functions
+        self.op_to_lambda[Type.FUNCTION] = {}
+        self.op_to_lambda[Type.FUNCTION]["=="] = lambda x, y: Value(
+            Type.BOOL, x.type() == y.type() and x.value() == y.value()
+        )
+        self.op_to_lambda[Type.FUNCTION]["!="] = lambda x, y: Value(
+            Type.BOOL, x.type() != y.type() or x.value() != y.value()
+        )
+
     def __do_if(self, if_ast):
         cond_ast = if_ast.get("condition")
         result = self.__eval_expr(cond_ast)
@@ -332,40 +341,4 @@ class Interpreter(InterpreterBase):
             return (ExecStatus.RETURN, Interpreter.NIL_VALUE)
         value_obj = copy.deepcopy(self.__eval_expr(expr_ast))
         return (ExecStatus.RETURN, value_obj)
-    
-interpreter = Interpreter()
-program = """
-func foo() {
-    print("Hello World");
-}
-
-func main() {
-  a = foo;   /* store function foo in variable a */
-  a();     /* call function foo through variable a, prints 10 */
-}
-
-
-"""
-interpreter.run(program)
-    
-    #change __assign to assign function to variable
-        #figure out how to do functions AND lambdas
-    #don't need to change __do_return, but need to change __eval_expr to be able to 
-    #change call_func and eval_expr for run statements
-    #add functions to op_to_lambda
-    
-
-    #do I need a function_obj instead of a value_obj like in do_return
-
-    #how to call functions through variable
-
-    #lambdas can mutate local variables
-        #maybe handle lambdas later
-    #returned lambdas/functions can't mutate closure
-
-    #comparing functions
-
-
-    #lambdas in eval_expr and do_return
-
-    #make a closure to capture the function and captured variables
+   
