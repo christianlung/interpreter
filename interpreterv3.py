@@ -4,7 +4,7 @@ from enum import Enum
 from brewparse import parse_program
 from env_v2 import EnvironmentManager
 from intbase import InterpreterBase, ErrorType
-from type_valuev2 import Type, Value, create_value, get_printable
+from type_valuev3 import Type, Value, create_value, get_printable
 
 
 class ExecStatus(Enum):
@@ -30,6 +30,7 @@ class Interpreter(InterpreterBase):
     # into an abstract syntax tree (ast)
     def run(self, program):
         ast = parse_program(program)
+        print(ast)
         self.__set_up_function_table(ast)
         self.env = EnvironmentManager()
         main_func = self.__get_func_by_name("main", 0)
@@ -89,7 +90,13 @@ class Interpreter(InterpreterBase):
             return self.__call_input(call_node)
 
         actual_args = call_node.get("args")
-        func_ast = self.__get_func_by_name(func_name, len(actual_args))
+        #if func name is a value object in env, then use that
+        #else, then look through func_to_name
+        func_var = self.env.get(func_name)
+        if func_var is not None:
+            func_ast = self.__get_func_by_name(func_var.value(), len(actual_args))
+        else:
+            func_ast = self.__get_func_by_name(func_name, len(actual_args))
         formal_args = func_ast.get("args")
         if len(actual_args) != len(formal_args):
             super().error(
@@ -144,10 +151,15 @@ class Interpreter(InterpreterBase):
             return Value(Type.BOOL, expr_ast.get("val"))
         if expr_ast.elem_type == InterpreterBase.VAR_DEF:
             var_name = expr_ast.get("name")
-            val = self.env.get(var_name)
-            if val is None:
-                super().error(ErrorType.NAME_ERROR, f"Variable {var_name} not found")
-            return val
+            if var_name in self.func_name_to_ast:
+                if len(self.func_name_to_ast[var_name]) != 1:
+                    super().error(ErrorType.NAME_ERROR, f"{var_name} is ambiguous")
+                return Value(Type.FUNCTION, var_name)
+            else:
+                val = self.env.get(var_name)
+                if val is None:
+                    super().error(ErrorType.NAME_ERROR, f"Variable {var_name} not found")
+                return val
         if expr_ast.elem_type == InterpreterBase.FCALL_DEF:
             return self.__call_func(expr_ast)
         if expr_ast.elem_type in Interpreter.BIN_OPS:
@@ -323,18 +335,18 @@ class Interpreter(InterpreterBase):
     
 interpreter = Interpreter()
 program = """
-func main(){
-    print( true + 6);
-    print( false * 10 );
-    print(true + true);
-    print(6+true);
-    print(10*false);
-    print(false + false);
+func foo() {
+    print("Hello World");
 }
+
+func main() {
+  a = foo;   /* store function foo in variable a */
+  a();     /* call function foo through variable a, prints 10 */
+}
+
+
 """
 interpreter.run(program)
-
-#handle if and while
     
     #change __assign to assign function to variable
         #figure out how to do functions AND lambdas
@@ -353,8 +365,7 @@ interpreter.run(program)
 
     #comparing functions
 
-    #type coercion, references, allows functions to be stored in variables, allow functions to be compared
-    #type checking, under "COMPARING FUNCTIONS"
-
 
     #lambdas in eval_expr and do_return
+
+    #make a closure to capture the function and captured variables
