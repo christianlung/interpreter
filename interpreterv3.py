@@ -361,3 +361,34 @@ class Interpreter(InterpreterBase):
             return (ExecStatus.RETURN, Interpreter.NIL_VALUE)
         value_obj = copy.deepcopy(self.__eval_expr(expr_ast))
         return (ExecStatus.RETURN, value_obj)
+    
+interpreter = Interpreter()
+program = """
+func main() {
+  y = lambda(x,y) {print(x+y);};
+  y(1,5);
+}
+"""
+interpreter.run(program)
+    
+    #handled primitive storing and printing of lambdas and returning a lambda
+        #still can't use variable to call lambda
+
+    #lambda and closures
+    #refs
+
+
+    #change __assign to assign lambda to variable
+    #don't need to change __do_return, but need to change __eval_expr to be able to 
+    #change call_func and eval_expr for run statements
+
+    #lambdas can mutate local variables
+        #maybe handle lambdas later
+    #returned lambdas/functions can't mutate closure
+
+
+    #lambdas in eval_expr and do_return
+
+    #make a closure to capture the function and captured variables
+
+#how to handle functions vs how to handle lambdas
