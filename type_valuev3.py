@@ -9,6 +9,7 @@ class Type(Enum):
     STRING = 3
     NIL = 4
     FUNCTION = 5
+    LAMBDA = 6
 
 
 # Represents a value, which has a type and its value
@@ -50,4 +51,6 @@ def get_printable(val):
         return "false"
     if val.type() == Type.FUNCTION:
         return str(val.value())
+    if val.type() == Type.LAMBDA:
+        return "Lambda function"
     return None

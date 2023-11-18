@@ -5,6 +5,7 @@ from brewparse import parse_program
 from env_v2 import EnvironmentManager
 from intbase import InterpreterBase, ErrorType
 from type_valuev3 import Type, Value, create_value, get_printable
+from lambdav3 import Lambda
 
 
 class ExecStatus(Enum):
@@ -90,8 +91,6 @@ class Interpreter(InterpreterBase):
             return self.__call_input(call_node)
 
         actual_args = call_node.get("args")
-        #if func name is a value object in env, then use that
-        #else, then look through func_to_name
         func_var = self.env.get(func_name)
         if func_var is not None:
             func_ast = self.__get_func_by_name(func_var.value(), len(actual_args))
@@ -149,6 +148,8 @@ class Interpreter(InterpreterBase):
             return Value(Type.STRING, expr_ast.get("val"))
         if expr_ast.elem_type == InterpreterBase.BOOL_DEF:
             return Value(Type.BOOL, expr_ast.get("val"))
+        if expr_ast.elem_type == InterpreterBase.LAMBDA_DEF:
+            return Value(Type.LAMBDA, Lambda(expr_ast.get("args"), expr_ast.get("statements")))
         if expr_ast.elem_type == InterpreterBase.VAR_DEF:
             var_name = expr_ast.get("name")
             if var_name in self.func_name_to_ast:
@@ -294,6 +295,15 @@ class Interpreter(InterpreterBase):
             Type.BOOL, x.type() == y.type() and x.value() == y.value()
         )
         self.op_to_lambda[Type.FUNCTION]["!="] = lambda x, y: Value(
+            Type.BOOL, x.type() != y.type() or x.value() != y.value()
+        )
+
+        # set up operations on lambdas 
+        self.op_to_lambda[Type.LAMBDA] = {}
+        self.op_to_lambda[Type.LAMBDA]["=="] = lambda x, y: Value(
+            Type.BOOL, x.type() == y.type() and x.value() == y.value()
+        )
+        self.op_to_lambda[Type.LAMBDA]["!="] = lambda x, y: Value(
             Type.BOOL, x.type() != y.type() or x.value() != y.value()
         )
 
