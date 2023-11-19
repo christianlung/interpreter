@@ -4,9 +4,14 @@ class EnvironmentManager:
     def __init__(self):
         self.environment = [{}]
 
+    def __len__(self):
+        return len(self.environment)
     #returns environment at the top of the stack
     def top(self):
         return self.environment[-1]
+    
+    def second_to_top(self):
+        return self.environment[-2]
     
     # returns a VariableDef object
     def get(self, symbol):
@@ -24,6 +29,12 @@ class EnvironmentManager:
 
         # symbol not found anywhere in the environment
         self.environment[-1][symbol] = value
+
+    def copy_down(self):
+        if len(self.environment)>1:
+            for var in self.environment[-3].keys():
+                if var in self.environment[-2].keys():
+                    self.environment[-3][var] = self.environment[-2][var]
 
     # create a new symbol in the top-most environment, regardless of whether that symbol exists
     # in a lower environment

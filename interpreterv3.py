@@ -77,7 +77,6 @@ class Interpreter(InterpreterBase):
             if status == ExecStatus.RETURN:
                 self.env.pop()
                 return (status, return_val)
-
         self.env.pop()
         return (ExecStatus.CONTINUE, Interpreter.NIL_VALUE)
 
@@ -102,7 +101,7 @@ class Interpreter(InterpreterBase):
                 formal_args = func_var.value().lamb().args()
                 env_var = func_var.value().lenv()
                 is_lambda = True
-            else: # if variable does not hold a functino or lambda
+            else: # if variable does not hold a function or lambda
                 super().error(
                     ErrorType.TYPE_ERROR,
                     f"{func_name} is not a lambda or function",
@@ -112,9 +111,14 @@ class Interpreter(InterpreterBase):
                     ErrorType.TYPE_ERROR,
                     f"{func_name} has wrong number of args",
                 )
-        else:
+        elif func_name in self.func_name_to_ast:
             func_ast = self.__get_func_by_name(func_name, len(actual_args)) #if function in table
             formal_args = func_ast.get("args")
+        else:
+            super().error(
+                    ErrorType.TYPE_ERROR,
+                    f"Function {func_name} not found",
+                )
         if len(actual_args) != len(formal_args):
             super().error(
                 ErrorType.NAME_ERROR,
@@ -128,6 +132,7 @@ class Interpreter(InterpreterBase):
         if is_lambda:
             for var, val in env_var.items():
                 self.env.create(var,val)
+            self.env.create("INLAMBDA",-1)
             _, return_val = self.__run_statements(func_var.value().lamb().stats())
         else:
             _, return_val = self.__run_statements(func_ast.get("statements"))
@@ -384,3 +389,59 @@ class Interpreter(InterpreterBase):
         value_obj = copy.deepcopy(self.__eval_expr(expr_ast))
         return (ExecStatus.RETURN, value_obj)
     
+interpreter = Interpreter()
+#can't mutate local variables yet
+fail = """ 
+func foo() {
+  b = 5;
+  f = lambda(a) { print(a*b); };   /* captures b = 5 */
+
+  return f;
+}
+
+func main() {
+  x = foo();
+  x(20);   /* prints 100, the call to the lambda has access to b = 5 */
+}
+"""
+
+fail2 = """
+func main() {
+  x = 0;
+  a = lambda() { x = x + 1; print(x); };
+  a(); /* prints 1 */
+  a(); /* prints 2 */
+}
+"""
+
+test = """
+func foo() { 
+  return foo; 
+}
+
+func main() {
+  print(foo() == foo());   /* prints false */
+}
+"""
+
+test1 = """
+func foo(ref x) { 
+  x = x + 1;
+}
+
+func main() {
+  a = 10;
+  foo(a);
+  print(a);     /* prints 11 */
+}
+
+"""
+
+#later test if b=a then call b()
+interpreter.run(test1)
+    #refs
+    #lambdas can mutate local variables
+    #returned lambdas/functions can't mutate closure
+
+#problem when doing foo()==foo() //should be false
+# it is returning deep copies of their names but since their names are the same, it returns true
