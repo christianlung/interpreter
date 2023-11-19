@@ -2,10 +2,10 @@ import copy
 from enum import Enum
 
 from brewparse import parse_program
-from env_v2 import EnvironmentManager
+from env_v3 import EnvironmentManager
 from intbase import InterpreterBase, ErrorType
 from type_valuev3 import Type, Value, create_value, get_printable
-from lambdav3 import Lambda
+from lambdav3 import Lambda, Closure
 
 
 class ExecStatus(Enum):
@@ -98,8 +98,9 @@ class Interpreter(InterpreterBase):
             if func_var.type() == Type.FUNCTION: #if variable stores a function
                 func_ast = self.__get_func_by_name(func_var.value(), len(actual_args))
                 formal_args = func_ast.get("args")
-            elif func_var.type() == Type.LAMBDA:  #if variable stores a lambda
-                formal_args = func_var.value().args()
+            elif func_var.type() == Type.CLOSURE:  #if variable stores a lambda
+                formal_args = func_var.value().lamb().args()
+                env_var = func_var.value().lenv()
                 is_lambda = True
             else: # if variable does not hold a functino or lambda
                 super().error(
@@ -125,7 +126,9 @@ class Interpreter(InterpreterBase):
             arg_name = formal_ast.get("name")
             self.env.create(arg_name, result)
         if is_lambda:
-            _, return_val = self.__run_statements(func_var.value().stats())
+            for var, val in env_var.items():
+                self.env.create(var,val)
+            _, return_val = self.__run_statements(func_var.value().lamb().stats())
         else:
             _, return_val = self.__run_statements(func_ast.get("statements"))
         self.env.pop()
@@ -169,7 +172,7 @@ class Interpreter(InterpreterBase):
         if expr_ast.elem_type == InterpreterBase.BOOL_DEF:
             return Value(Type.BOOL, expr_ast.get("val"))
         if expr_ast.elem_type == InterpreterBase.LAMBDA_DEF:
-            return Value(Type.LAMBDA, Lambda(expr_ast.get("args"), expr_ast.get("statements")))
+            return Value(Type.CLOSURE, Closure(Lambda(expr_ast.get("args"), expr_ast.get("statements")), copy.deepcopy(self.env.top())))
         if expr_ast.elem_type == InterpreterBase.VAR_DEF:
             var_name = expr_ast.get("name")
             if var_name in self.func_name_to_ast:
@@ -372,43 +375,3 @@ class Interpreter(InterpreterBase):
         value_obj = copy.deepcopy(self.__eval_expr(expr_ast))
         return (ExecStatus.RETURN, value_obj)
     
-interpreter = Interpreter()
-program = """
-func foo() {
-  b = 5;
-  f = lambda(b) { print(b); };   /* captures b = 5 */
-  return f;
-}
-
-func main() {
-  x = foo();
-  x(20);   /* prints 100, the call to the lambda has access to b = 5 */
-}
-"""
-
-temp = """
-func main() {
-  y = lambda(x) { print(x); };
-  y(10, 20);   /* ErrorType.TYPE_ERROR since lambda takes 1 arg */
-}
-"""
-interpreter.run(temp)
-
-    #lambda and closures
-    #refs
-
-
-    #change __assign to assign lambda to variable
-    #don't need to change __do_return, but need to change __eval_expr to be able to 
-    #change call_func and eval_expr for run statements
-
-    #lambdas can mutate local variables
-        #maybe handle lambdas later
-    #returned lambdas/functions can't mutate closure
-
-
-    #lambdas in eval_expr and do_return
-
-    #make a closure to capture the function and captured variables
-
-#how to handle functions vs how to handle lambdas

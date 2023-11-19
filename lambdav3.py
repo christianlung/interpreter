@@ -11,3 +11,15 @@ class Lambda:
 
     def stats(self):
         return self.s
+
+class Closure:
+    def __init__(self, lamb, env):
+        self.l = lamb
+        self.e = env
+    
+    def lamb(self):
+        return self.l
+    
+    def lenv(self):
+        return self.e
+    
