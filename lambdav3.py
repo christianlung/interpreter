@@ -23,3 +23,5 @@ class Closure:
     def lenv(self):
         return self.e
     
+    def update(self, env):
+        self.e.environment.append(env)

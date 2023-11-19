@@ -124,19 +124,29 @@ class Interpreter(InterpreterBase):
                 ErrorType.NAME_ERROR,
                 f"Function {func_ast.get('name')} with {len(actual_args)} args not found",
             )
+
+        if is_lambda:
+            self.env.push()
+            for envs in env_var.environment:
+                for var, val in envs.items():
+                    self.env.create(var,val)
+
         self.env.push()
         for formal_ast, actual_ast in zip(formal_args, actual_args):
             result = copy.deepcopy(self.__eval_expr(actual_ast))
             arg_name = formal_ast.get("name")
             self.env.create(arg_name, result)
+        
         if is_lambda:
-            for var, val in env_var.items():
-                self.env.create(var,val)
-            self.env.create("INLAMBDA",-1)
             _, return_val = self.__run_statements(func_var.value().lamb().stats())
         else:
             _, return_val = self.__run_statements(func_ast.get("statements"))
         self.env.pop()
+
+        if is_lambda:
+            func_var.value().update(self.env.top())
+            self.env.pop()
+        
         return return_val
 
     def __call_print(self, call_ast):
@@ -177,7 +187,7 @@ class Interpreter(InterpreterBase):
         if expr_ast.elem_type == InterpreterBase.BOOL_DEF:
             return Value(Type.BOOL, expr_ast.get("val"))
         if expr_ast.elem_type == InterpreterBase.LAMBDA_DEF:
-            return Value(Type.CLOSURE, Closure(Lambda(expr_ast.get("args"), expr_ast.get("statements")), copy.deepcopy(self.env.top())))
+            return Value(Type.CLOSURE, Closure(Lambda(expr_ast.get("args"), expr_ast.get("statements")), copy.deepcopy(self.env)))
         if expr_ast.elem_type == InterpreterBase.VAR_DEF:
             var_name = expr_ast.get("name")
             if var_name in self.func_name_to_ast:
@@ -390,58 +400,17 @@ class Interpreter(InterpreterBase):
         return (ExecStatus.RETURN, value_obj)
     
 interpreter = Interpreter()
-#can't mutate local variables yet
-fail = """ 
-func foo() {
-  b = 5;
-  f = lambda(a) { print(a*b); };   /* captures b = 5 */
 
-  return f;
-}
-
-func main() {
-  x = foo();
-  x(20);   /* prints 100, the call to the lambda has access to b = 5 */
-}
-"""
-
-fail2 = """
+test = """
 func main() {
   x = 0;
   a = lambda() { x = x + 1; print(x); };
+  b = a;
   a(); /* prints 1 */
-  a(); /* prints 2 */
+  b(); /* prints 2 */
+  a(); /* prints 3 */
+  b(); /* prints 4 */
 }
 """
 
-test = """
-func foo() { 
-  return foo; 
-}
-
-func main() {
-  print(foo() == foo());   /* prints false */
-}
-"""
-
-test1 = """
-func foo(ref x) { 
-  x = x + 1;
-}
-
-func main() {
-  a = 10;
-  foo(a);
-  print(a);     /* prints 11 */
-}
-
-"""
-
-#later test if b=a then call b()
-interpreter.run(test1)
-    #refs
-    #lambdas can mutate local variables
-    #returned lambdas/functions can't mutate closure
-
-#problem when doing foo()==foo() //should be false
-# it is returning deep copies of their names but since their names are the same, it returns true
+interpreter.run(test)
