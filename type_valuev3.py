@@ -11,6 +11,7 @@ class Type(Enum):
     FUNCTION = 5
     LAMBDA = 6
     CLOSURE = 7
+    REFARG = 8
 
 
 # Represents a value, which has a type and its value
@@ -56,4 +57,6 @@ def get_printable(val):
         return "Lambda function"
     if val.type() == Type.CLOSURE:
         return "Closure"
+    if val.type() == Type.REFARG:
+        return "Refarg"
     return None

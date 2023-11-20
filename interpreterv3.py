@@ -133,10 +133,17 @@ class Interpreter(InterpreterBase):
 
         self.env.push()
         for formal_ast, actual_ast in zip(formal_args, actual_args):
-            result = copy.deepcopy(self.__eval_expr(actual_ast))
+            if formal_ast.elem_type == InterpreterBase.REFARG_DEF:
+                if actual_ast.elem_type == InterpreterBase.VAR_DEF:
+                    result = Value(Type.REFARG, self.env.get(actual_ast.get("name")))
+                # while actual_ast.elem_type == InterpreterBase.REFARG_DEF:
+                #     actual_ast = self.env.get(actual_ast.get("name")).t
+
+                # result = Value(Type.REFARG, self.env.get(actual_ast.get("name")))
+            else:
+                result = copy.deepcopy(self.__eval_expr(actual_ast))
             arg_name = formal_ast.get("name")
-            self.env.create(arg_name, result)
-        
+            self.env.create(arg_name, result) 
         if is_lambda:
             _, return_val = self.__run_statements(func_var.value().lamb().stats())
         else:
@@ -175,7 +182,11 @@ class Interpreter(InterpreterBase):
     def __assign(self, assign_ast):
         var_name = assign_ast.get("name")
         value_obj = self.__eval_expr(assign_ast.get("expression"))
-        self.env.set(var_name, value_obj)
+        if self.env.get(var_name) is not None and self.env.get(var_name).type() == Type.REFARG:
+            self.env.get(var_name).v.t = value_obj.t
+            self.env.get(var_name).v.v = value_obj.v
+        else:
+            self.env.set(var_name, value_obj)
 
     def __eval_expr(self, expr_ast):
         if expr_ast.elem_type == InterpreterBase.NIL_DEF:
@@ -188,6 +199,8 @@ class Interpreter(InterpreterBase):
             return Value(Type.BOOL, expr_ast.get("val"))
         if expr_ast.elem_type == InterpreterBase.LAMBDA_DEF:
             return Value(Type.CLOSURE, Closure(Lambda(expr_ast.get("args"), expr_ast.get("statements")), copy.deepcopy(self.env)))
+        if expr_ast.elem_type == InterpreterBase.REFARG_DEF:
+            return Value(Type.REFARG, expr_ast.get("name"))
         if expr_ast.elem_type == InterpreterBase.VAR_DEF:
             var_name = expr_ast.get("name")
             if var_name in self.func_name_to_ast:
@@ -229,6 +242,10 @@ class Interpreter(InterpreterBase):
     def __compatible_types(self, oper, obj1, obj2):
         # DOCUMENT: allow comparisons ==/!= of anything against anything, allow BOOL and INT comparisons
         if oper in ["==", "!="]:
+            return True
+        if (obj1.type() == Type.REFARG and obj1.value().type() == obj2.type()): 
+            return True
+        if (obj2.type() == Type.REFARG and obj2.value().type() == obj1.type()):
             return True
         if obj1.type() in [Type.BOOL, Type.INT] and obj1.type() in [Type.BOOL, Type.INT]:
             return True
@@ -354,6 +371,45 @@ class Interpreter(InterpreterBase):
             Type.BOOL, x.type() != y.type() or x.value() != y.value()
         )
 
+        # set up operations on refs
+        self.op_to_lambda[Type.REFARG] = {}
+        self.op_to_lambda[Type.REFARG]["+"] = lambda x, y: Value(
+            y.type(), x.value().value() + y.value()
+        )
+        self.op_to_lambda[Type.REFARG]["-"] = lambda x, y: Value(
+            y.type(), x.value().value() - y.value()
+        )
+        self.op_to_lambda[Type.REFARG]["*"] = lambda x, y: Value(
+            y.type(), x.value().value() * y.value()
+        )
+        self.op_to_lambda[Type.REFARG]["/"] = lambda x, y: Value(
+            y.type(), x.value().value() // y.value()
+        )
+        self.op_to_lambda[Type.REFARG]["=="] = lambda x, y: Value(
+            Type.BOOL, bool(x.value().value()) == bool(y.value())
+        )
+        self.op_to_lambda[Type.REFARG]["!="] = lambda x, y: Value(
+            Type.BOOL, bool(x.value().value()) != bool(y.value())
+        )
+        self.op_to_lambda[Type.REFARG]["<"] = lambda x, y: Value(
+            Type.BOOL, x.value().value() < y.value()
+        )
+        self.op_to_lambda[Type.REFARG]["<="] = lambda x, y: Value(
+            Type.BOOL, x.value().value() <= y.value()
+        )
+        self.op_to_lambda[Type.REFARG][">"] = lambda x, y: Value(
+            Type.BOOL, x.value().value() > y.value()
+        )
+        self.op_to_lambda[Type.REFARG][">="] = lambda x, y: Value(
+            Type.BOOL, x.value().value() >= y.value()
+        )
+        self.op_to_lambda[Type.REFARG]["&&"] = lambda x, y: Value(
+            Type.BOOL, bool(x.value().value()) and bool(y.value())
+        )
+        self.op_to_lambda[Type.REFARG]["||"] = lambda x, y: Value(
+            Type.BOOL, bool(x.value().value()) or bool(y.value())
+        )
+
     def __do_if(self, if_ast):
         cond_ast = if_ast.get("condition")
         result = self.__eval_expr(cond_ast)
@@ -400,17 +456,20 @@ class Interpreter(InterpreterBase):
         return (ExecStatus.RETURN, value_obj)
     
 interpreter = Interpreter()
+program = """
+func foo(f1, ref f2) {
+  f1();  /* prints 1 */
+  f2();  /* prints 1 */
+}
 
-test = """
 func main() {
   x = 0;
-  a = lambda() { x = x + 1; print(x); };
-  b = a;
-  a(); /* prints 1 */
-  b(); /* prints 2 */
-  a(); /* prints 3 */
-  b(); /* prints 4 */
+  lam1 = lambda() { x = x + 1; print(x); };
+  lam2 = lambda() { x = x + 1; print(x); };
+  foo(lam1, lam2);
+  lam1();  /* prints 1 */
+  lam2();  /* prints 2 */
 }
 """
 
-interpreter.run(test)
+interpreter.run(program)
