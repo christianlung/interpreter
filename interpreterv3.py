@@ -136,10 +136,6 @@ class Interpreter(InterpreterBase):
             if formal_ast.elem_type == InterpreterBase.REFARG_DEF:
                 if actual_ast.elem_type == InterpreterBase.VAR_DEF:
                     result = Value(Type.REFARG, self.env.get(actual_ast.get("name")))
-                # while actual_ast.elem_type == InterpreterBase.REFARG_DEF:
-                #     actual_ast = self.env.get(actual_ast.get("name")).t
-
-                # result = Value(Type.REFARG, self.env.get(actual_ast.get("name")))
             else:
                 result = copy.deepcopy(self.__eval_expr(actual_ast))
             arg_name = formal_ast.get("name")
@@ -373,41 +369,11 @@ class Interpreter(InterpreterBase):
 
         # set up operations on refs
         self.op_to_lambda[Type.REFARG] = {}
-        self.op_to_lambda[Type.REFARG]["+"] = lambda x, y: Value(
-            y.type(), x.value().value() + y.value()
-        )
-        self.op_to_lambda[Type.REFARG]["-"] = lambda x, y: Value(
-            y.type(), x.value().value() - y.value()
-        )
-        self.op_to_lambda[Type.REFARG]["*"] = lambda x, y: Value(
-            y.type(), x.value().value() * y.value()
-        )
-        self.op_to_lambda[Type.REFARG]["/"] = lambda x, y: Value(
-            y.type(), x.value().value() // y.value()
-        )
         self.op_to_lambda[Type.REFARG]["=="] = lambda x, y: Value(
             Type.BOOL, bool(x.value().value()) == bool(y.value())
         )
         self.op_to_lambda[Type.REFARG]["!="] = lambda x, y: Value(
             Type.BOOL, bool(x.value().value()) != bool(y.value())
-        )
-        self.op_to_lambda[Type.REFARG]["<"] = lambda x, y: Value(
-            Type.BOOL, x.value().value() < y.value()
-        )
-        self.op_to_lambda[Type.REFARG]["<="] = lambda x, y: Value(
-            Type.BOOL, x.value().value() <= y.value()
-        )
-        self.op_to_lambda[Type.REFARG][">"] = lambda x, y: Value(
-            Type.BOOL, x.value().value() > y.value()
-        )
-        self.op_to_lambda[Type.REFARG][">="] = lambda x, y: Value(
-            Type.BOOL, x.value().value() >= y.value()
-        )
-        self.op_to_lambda[Type.REFARG]["&&"] = lambda x, y: Value(
-            Type.BOOL, bool(x.value().value()) and bool(y.value())
-        )
-        self.op_to_lambda[Type.REFARG]["||"] = lambda x, y: Value(
-            Type.BOOL, bool(x.value().value()) or bool(y.value())
         )
 
     def __do_if(self, if_ast):
@@ -455,21 +421,3 @@ class Interpreter(InterpreterBase):
         value_obj = copy.deepcopy(self.__eval_expr(expr_ast))
         return (ExecStatus.RETURN, value_obj)
     
-interpreter = Interpreter()
-program = """
-func foo(f1, ref f2) {
-  f1();  /* prints 1 */
-  f2();  /* prints 1 */
-}
-
-func main() {
-  x = 0;
-  lam1 = lambda() { x = x + 1; print(x); };
-  lam2 = lambda() { x = x + 1; print(x); };
-  foo(lam1, lam2);
-  lam1();  /* prints 1 */
-  lam2();  /* prints 2 */
-}
-"""
-
-interpreter.run(program)

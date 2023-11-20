@@ -1,5 +1,7 @@
 # The EnvironmentManager class keeps a mapping between each variable name (aka symbol)
 # in a brewin program and the Value object, which stores a type, and a value.
+from type_valuev3 import Type
+
 class EnvironmentManager:
     def __init__(self):
         self.environment = [{}]
@@ -15,6 +17,8 @@ class EnvironmentManager:
     def get(self, symbol):
         for env in reversed(self.environment):
             if symbol in env:
+                if env[symbol].type() == Type.REFARG:
+                    return env[symbol].value()
                 return env[symbol]
 
         return None
@@ -22,6 +26,10 @@ class EnvironmentManager:
     def set(self, symbol, value):
         for env in reversed(self.environment):
             if symbol in env:
+                if env[symbol].type() == Type.REFARG:
+                    env[symbol].v.t = value.t
+                    env[symbol].v.v = value.v
+                    return
                 env[symbol] = value
                 return
 
