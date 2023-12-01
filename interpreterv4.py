@@ -127,7 +127,7 @@ class Interpreter(InterpreterBase):
         target_ast = member_var.value().func_ast
 
         new_env = {}
-        new_env[InterpreterBase.THIS_DEF] = target_obj
+        new_env[InterpreterBase.THIS_DEF] = self.env.get(obj_name)
         # self.__prepare_env_with_closed_variables(member_var, new_env)
         self.__prepare_params(target_ast,method_ast, new_env)
         self.env.push(new_env)
@@ -218,7 +218,10 @@ class Interpreter(InterpreterBase):
                 super().error(
                     ErrorType.NAME_ERROR, f"Variable {var_name} not found"
                 )
-            self.env.set(var_name, src_value_obj)
+            if src_value_obj.type() == Type.OBJECT: #if assigning variable to object
+                self.env.set(var_name, self.__eval_expr(assign_ast.get("expression")))
+            else:
+                self.env.set(var_name, src_value_obj)
         else:
             if target_value_obj.t == Type.OBJECT and has_member:
                 setattr(target_value_obj.v, member, src_value_obj)
@@ -423,6 +426,15 @@ class Interpreter(InterpreterBase):
             Type.BOOL, x.value() != y.value()
         )
 
+        #  set up operations on objects
+        self.op_to_lambda[Type.OBJECT] = {}
+        self.op_to_lambda[Type.OBJECT]["=="] = lambda x, y: Value(
+            Type.BOOL, x is y
+        )
+        self.op_to_lambda[Type.OBJECT]["!="] = lambda x, y: Value(
+            Type.BOOL, x is not y
+        )
+
     def __do_if(self, if_ast):
         cond_ast = if_ast.get("condition")
         result = self.__eval_expr(cond_ast)
@@ -471,3 +483,33 @@ class Interpreter(InterpreterBase):
             return (ExecStatus.RETURN, Interpreter.NIL_VALUE)
         value_obj = copy.deepcopy(self.__eval_expr(expr_ast))
         return (ExecStatus.RETURN, value_obj)
+
+
+
+interpreter = Interpreter()
+fail = """
+func main() {
+  a = @;
+  cap = 0;
+  b = lambda() { cap = cap + 1; print(cap); };
+  a.m = b;  /* points at same closure that b does */
+  a.m();    /* prints 1 */
+  a.m();    /* prints 2 */
+  b();      /* prints 3, since a.m and b point to same closure  */
+}
+"""
+
+program = """
+func main() {
+  x = @;
+  x.a = 10;
+  z = x;
+  if (x==z){ print("This will print");}
+}
+"""
+
+
+
+interpreter.run(program)
+
+#certain things pass by reference in closures
