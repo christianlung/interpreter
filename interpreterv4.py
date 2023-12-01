@@ -128,7 +128,7 @@ class Interpreter(InterpreterBase):
 
         new_env = {}
         new_env[InterpreterBase.THIS_DEF] = self.env.get(obj_name)
-        # self.__prepare_env_with_closed_variables(member_var, new_env)
+        self.__prepare_env_with_closed_variables(member_var.value(), new_env)
         self.__prepare_params(target_ast,method_ast, new_env)
         self.env.push(new_env)
         _, return_val = self.__run_statements(target_ast.get("statements"))
@@ -160,6 +160,8 @@ class Interpreter(InterpreterBase):
 
     def __prepare_env_with_closed_variables(self, target_closure, temp_env):
         for var_name, value in target_closure.captured_env:
+            if value.type() in [Type.CLOSURE, Type.OBJECT]:
+                continue
             # Updated here - ignore updates to the scope if we
             #   altered a parameter, or if the argument is a similarly named variable
             temp_env[var_name] = value
@@ -499,17 +501,73 @@ func main() {
 }
 """
 
+fail3 = """
+func main() {
+  /* define prototype object */
+  p = @;
+  p.add_foo = lambda() { this.foo = 10; };
+
+  /* define child object c, which inherits from p */
+  c = @;
+  c.proto = p;
+  c.add_foo();
+
+  print(c.foo);  /* prints 10 */
+}
+"""
+
+fail4 = """
+func main() {
+  person = @;
+  person.name = "anon";
+  person.act = lambda() { this.say_hi(); };
+  person.say_hi = lambda() { print(this.name," says hi!"); };
+
+  carey = @;
+  carey.name = "Carey";
+  carey.proto = person;
+  carey.say_hi = lambda() { print(this.name," says hello!"); };
+
+  carey.act(); /* prints "Carey says hello!" */
+}
+"""
+
 program = """
 func main() {
-  x = @;
-  x.a = 10;
-  z = x;
-  if (x==z){ print("This will print");}
+ c = 5;
+ /* d captures object c by object reference */ 
+ d = lambda() { c = 10; };
+
+ d();   
+ print(c);  /* prints 5, since closure modified copy of variable c */
+}
+"""
+
+fail2 = """
+func main() {
+ c = @;
+ /* d captures object c by object reference */ 
+ d = lambda() { c.x = 5; };
+
+ d();  
+ print(c.x);  /* prints 5, since closure modified original object */
 }
 """
 
 
+interpreter.run(fail)
 
-interpreter.run(program)
+#However, in Brewin# a variable referring to an object is captured in a closure by reference. 
+# In capture by reference, the captured variable inside the closure directly refers to the original variable defined outside the closure. 
+# Any changes to the captured variable within the closure impact the original variable outside the closure as well. 
 
-#certain things pass by reference in closures
+
+#In a similar fashion, in Brewin# all variables holding closures are captured reference. 
+# So if a closure d captures a variable c (that itself holds a closure), any changes to c within d will impact the outside variable c.
+
+
+#figure out how to pass obj by reference
+    #right now, it is modifying the top level variable and not modifying the lower level
+#check prototype
+#do recursive check for methods or values in proto
+

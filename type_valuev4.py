@@ -22,7 +22,7 @@ class Closure:
     def __init__(self, func_ast, env):
         self.captured_env = copy.deepcopy(env)
         self.func_ast = func_ast
-        self.type = Type.CLOSURE
+        self.type = Type.CLOSURE     
 
 
 # Represents a value, which has a type and its value
