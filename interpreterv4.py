@@ -228,9 +228,13 @@ class Interpreter(InterpreterBase):
             return Value(Type.CLOSURE, Closure(expr_ast, self.env))
 
     def __eval_name(self, name_ast):
-        var_name = name_ast.get("name")
+        #if has a dot in the name_ast.get("name"), then call the obj's attribute and get that member variable
+        parsed_name = name_ast.get("name").split('.')
+        var_name = parsed_name[0]
         val = self.env.get(var_name)
         if val is not None:
+            if val.type() == Type.OBJECT and len(parsed_name)>1:
+                return getattr(val.value(), parsed_name[1])
             return val
         closure = self.__get_func_by_name(var_name, None)
         if closure is None:
@@ -449,11 +453,9 @@ interpreter = Interpreter()
 program = """
 func main(){
     x = @;
-    x.var = 24;
-    print(x);
+    x.var = true;
+    print(x.var);
 }
 """
 
 interpreter.run(program)
-
-#print (x.var)
