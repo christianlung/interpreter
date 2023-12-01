@@ -93,6 +93,8 @@ class Interpreter(InterpreterBase):
             status = ExecStatus.CONTINUE
             if statement.elem_type == InterpreterBase.FCALL_DEF:
                 self.__call_func(statement)
+            elif statement.elem_type == InterpreterBase.MCALL_DEF:
+                self.__call_method(statement)
             elif statement.elem_type == "=":
                 self.__assign(statement)
             elif statement.elem_type == InterpreterBase.RETURN_DEF:
@@ -109,6 +111,29 @@ class Interpreter(InterpreterBase):
         self.env.pop()
         return (ExecStatus.CONTINUE, Interpreter.NIL_VALUE)
 
+    def __call_method(self, method_ast):
+        obj_name = method_ast.get("objref")
+        method_name = method_ast.get("name")
+        target_obj = self.env.get(obj_name)
+        if target_obj is None:
+            super().error(ErrorType.NAME_ERROR, f"Variable {obj_name} not found")
+        if target_obj.type() != Type.OBJECT:
+            super().error(ErrorType.TYPE_ERROR, f"{obj_name} is not an object")
+        if hasattr(target_obj.value(), method_name) == False:
+            super().error(ErrorType.NAME_ERROR, f"Method {obj_name}.{method_name} not found")
+        member_var = getattr(target_obj.value(), method_name)
+        if member_var.type() != Type.CLOSURE:
+            super().error(ErrorType.TYPE_ERROR, f"Trying to call non-function/closure")
+        target_ast = member_var.value().func_ast
+
+        new_env = {}
+        new_env[InterpreterBase.THIS_DEF] = target_obj
+        # self.__prepare_env_with_closed_variables(member_var, new_env)
+        self.__prepare_params(target_ast,method_ast, new_env)
+        self.env.push(new_env)
+        _, return_val = self.__run_statements(target_ast.get("statements"))
+        self.env.pop()
+        return return_val
 
     def __call_func(self, call_ast):
         func_name = call_ast.get("name")
@@ -446,16 +471,3 @@ class Interpreter(InterpreterBase):
             return (ExecStatus.RETURN, Interpreter.NIL_VALUE)
         value_obj = copy.deepcopy(self.__eval_expr(expr_ast))
         return (ExecStatus.RETURN, value_obj)
-
-
-
-interpreter = Interpreter()
-program = """
-func main(){
-    x = @;
-    x.var = true;
-    print(x.var);
-}
-"""
-
-interpreter.run(program)
