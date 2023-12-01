@@ -63,4 +63,6 @@ def get_printable(val):
         if val.value() is True:
             return "true"
         return "false"
+    if val.type() == Type.OBJECT:
+        return str({k: v for k, v in vars(val.value()).items() if not callable(v)})
     return None

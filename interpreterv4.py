@@ -4,7 +4,7 @@ from enum import Enum
 from brewparse import parse_program
 from env_v4 import EnvironmentManager
 from intbase import InterpreterBase, ErrorType
-from type_valuev4 import Closure, Type, Value, create_value, get_printable
+from type_valuev4 import Object, Closure, Type, Value, create_value, get_printable
 
 
 class ExecStatus(Enum):
@@ -30,6 +30,7 @@ class Interpreter(InterpreterBase):
     # into an abstract syntax tree (ast)
     def run(self, program):
         ast = parse_program(program)
+        print(ast)
         self.__set_up_function_table(ast)
         self.env = EnvironmentManager()
         main_func = self.__get_func_by_name("main", 0)
@@ -180,16 +181,27 @@ class Interpreter(InterpreterBase):
             return Value(Type.STRING, inp)
 
     def __assign(self, assign_ast):
-        var_name = assign_ast.get("name")
+        parsed_left = (assign_ast.get("name")).split('.')
+        var_name = parsed_left[0]
+        has_member = True if len(parsed_left)>1 else False
+        if has_member: member = parsed_left[1]
+
         src_value_obj = copy.copy(self.__eval_expr(assign_ast.get("expression")))
         target_value_obj = self.env.get(var_name)
         if target_value_obj is None:
+            if has_member: 
+                super().error(
+                    ErrorType.NAME_ERROR, f"Variable {var_name} not found"
+                )
             self.env.set(var_name, src_value_obj)
         else:
-                        # if a close is changed to another type such as int, we cannot make function calls on it any more 
-            if target_value_obj.t == Type.CLOSURE and src_value_obj.t != Type.CLOSURE:
-                target_value_obj.v.type = src_value_obj.t
-            target_value_obj.set(src_value_obj)
+            if target_value_obj.t == Type.OBJECT and has_member:
+                setattr(target_value_obj.v, member, src_value_obj)
+                        # if a closure is changed to another type such as int, we cannot make function calls on it any more 
+            else:
+                if target_value_obj.t == Type.CLOSURE and src_value_obj.t != Type.CLOSURE:
+                    target_value_obj.v.type = src_value_obj.t
+                target_value_obj.set(src_value_obj)
 
     def __eval_expr(self, expr_ast):
         if expr_ast.elem_type == InterpreterBase.NIL_DEF:
@@ -200,6 +212,8 @@ class Interpreter(InterpreterBase):
             return Value(Type.STRING, expr_ast.get("val"))
         if expr_ast.elem_type == InterpreterBase.BOOL_DEF:
             return Value(Type.BOOL, expr_ast.get("val"))
+        if expr_ast.elem_type == InterpreterBase.OBJ_DEF:
+            return Value(Type.OBJECT, Object())
         if expr_ast.elem_type == InterpreterBase.VAR_DEF:
             return self.__eval_name(expr_ast)
         if expr_ast.elem_type == InterpreterBase.FCALL_DEF:
@@ -428,3 +442,18 @@ class Interpreter(InterpreterBase):
             return (ExecStatus.RETURN, Interpreter.NIL_VALUE)
         value_obj = copy.deepcopy(self.__eval_expr(expr_ast))
         return (ExecStatus.RETURN, value_obj)
+
+
+
+interpreter = Interpreter()
+program = """
+func main(){
+    x = @;
+    x.var = 24;
+    print(x);
+}
+"""
+
+interpreter.run(program)
+
+#print (x.var)
