@@ -17,6 +17,18 @@ class Object:
     def __init__(self):
         self.proto = Value(Type.NIL, None)
         self.type = Type.OBJECT
+    
+    def get_member(self, member):
+        if hasattr(self, member):
+            return getattr(self, member)
+        else:
+            temp = self.proto
+            while temp.type() != Type.NIL:
+                if hasattr(temp.value(), member):
+                    return getattr(temp.value(), member)
+                temp = temp.value().proto
+        return None
+
 
 class Closure:
     def __init__(self, func_ast, env):

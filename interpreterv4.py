@@ -119,9 +119,10 @@ class Interpreter(InterpreterBase):
             super().error(ErrorType.NAME_ERROR, f"Variable {obj_name} not found")
         if target_obj.type() != Type.OBJECT:
             super().error(ErrorType.TYPE_ERROR, f"{obj_name} is not an object")
-        if hasattr(target_obj.value(), method_name) == False:
+
+        member_var = target_obj.value().get_member(method_name)
+        if member_var is None:
             super().error(ErrorType.NAME_ERROR, f"Method {obj_name}.{method_name} not found")
-        member_var = getattr(target_obj.value(), method_name)
         if member_var.type() != Type.CLOSURE:
             super().error(ErrorType.TYPE_ERROR, f"Trying to call non-function/closure")
         target_ast = member_var.value().func_ast
@@ -226,7 +227,10 @@ class Interpreter(InterpreterBase):
                 self.env.set(var_name, src_value_obj)
         else:
             if target_value_obj.t == Type.OBJECT and has_member:
-                setattr(target_value_obj.v, member, src_value_obj)
+                if src_value_obj.type() == Type.OBJECT: #if right side is an object, use direct object
+                    setattr(target_value_obj.v, member, self.__eval_expr(assign_ast.get("expression")))
+                else:
+                    setattr(target_value_obj.v, member, src_value_obj) #if right side is not an object, use copy
                         # if a closure is changed to another type such as int, we cannot make function calls on it any more 
             else:
                 if target_value_obj.t == Type.CLOSURE and src_value_obj.t != Type.CLOSURE:
@@ -264,7 +268,8 @@ class Interpreter(InterpreterBase):
         val = self.env.get(var_name)
         if val is not None:
             if val.type() == Type.OBJECT and len(parsed_name)>1:
-                return getattr(val.value(), parsed_name[1])
+                return val.value().get_member(parsed_name[1])
+                # return getattr(val.value(), parsed_name[1])
             return val
         closure = self.__get_func_by_name(var_name, None)
         if closure is None:
@@ -489,18 +494,6 @@ class Interpreter(InterpreterBase):
 
 
 interpreter = Interpreter()
-fail = """
-func main() {
-  a = @;
-  cap = 0;
-  b = lambda() { cap = cap + 1; print(cap); };
-  a.m = b;  /* points at same closure that b does */
-  a.m();    /* prints 1 */
-  a.m();    /* prints 2 */
-  b();      /* prints 3, since a.m and b point to same closure  */
-}
-"""
-
 fail3 = """
 func main() {
   /* define prototype object */
@@ -533,41 +526,20 @@ func main() {
 """
 
 program = """
-func main() {
- c = 5;
- /* d captures object c by object reference */ 
- d = lambda() { c = 10; };
+func main(){
+    p = @;
+    p.x = 10;
+    p.hello = lambda() { print("Hello world!"); };
 
- d();   
- print(c);  /* prints 5, since closure modified copy of variable c */
-}
-"""
+    c = @;
+    c.proto = p; /* c is a child of p, inherits x and hello() */
+    c.y = 20;    /* c may have its own fields/methods too */
 
-fail2 = """
-func main() {
- c = @;
- /* d captures object c by object reference */ 
- d = lambda() { c.x = 5; };
-
- d();  
- print(c.x);  /* prints 5, since closure modified original object */
+    c.hello(); /* prints "Hello world!" */
+    print(c.x); /* prints 10 */
+    print(c.y); /* prints 20 */
 }
 """
 
 
-interpreter.run(fail)
-
-#However, in Brewin# a variable referring to an object is captured in a closure by reference. 
-# In capture by reference, the captured variable inside the closure directly refers to the original variable defined outside the closure. 
-# Any changes to the captured variable within the closure impact the original variable outside the closure as well. 
-
-
-#In a similar fashion, in Brewin# all variables holding closures are captured reference. 
-# So if a closure d captures a variable c (that itself holds a closure), any changes to c within d will impact the outside variable c.
-
-
-#figure out how to pass obj by reference
-    #right now, it is modifying the top level variable and not modifying the lower level
-#check prototype
-#do recursive check for methods or values in proto
-
+interpreter.run(program)
