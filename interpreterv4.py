@@ -258,6 +258,8 @@ class Interpreter(InterpreterBase):
             return self.__eval_name(expr_ast)
         if expr_ast.elem_type == InterpreterBase.FCALL_DEF:
             return self.__call_func(expr_ast)
+        if expr_ast.elem_type == InterpreterBase.MCALL_DEF:
+            return self.__call_method(expr_ast)
         if expr_ast.elem_type in Interpreter.BIN_OPS:
             return self.__eval_op(expr_ast)
         if expr_ast.elem_type == Interpreter.NEG_DEF:
