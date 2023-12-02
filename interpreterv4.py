@@ -227,14 +227,17 @@ class Interpreter(InterpreterBase):
             else:
                 self.env.set(var_name, src_value_obj)
         else:
-            if target_value_obj.t == Type.OBJECT and has_member:
-                if member == "proto" and src_value_obj.type() not in [Type.OBJECT, Type.NIL]:
-                    super().error(ErrorType.TYPE_ERROR, "Assigned proto is not an object")
-                if src_value_obj.type() == Type.OBJECT: #if right side is an object, use direct object
-                    setattr(target_value_obj.v, member, self.__eval_expr(assign_ast.get("expression")))
+            if has_member:
+                if target_value_obj.t == Type.OBJECT:
+                    if member == "proto" and src_value_obj.type() not in [Type.OBJECT, Type.NIL]:
+                        super().error(ErrorType.TYPE_ERROR, "Assigned proto is not an object")
+                    if src_value_obj.type() == Type.OBJECT: #if right side is an object, use direct object
+                        setattr(target_value_obj.v, member, self.__eval_expr(assign_ast.get("expression")))
+                    else:
+                        setattr(target_value_obj.v, member, src_value_obj) #if right side is not an object, use copy
+                            # if a closure is changed to another type such as int, we cannot make function calls on it any more 
                 else:
-                    setattr(target_value_obj.v, member, src_value_obj) #if right side is not an object, use copy
-                        # if a closure is changed to another type such as int, we cannot make function calls on it any more 
+                    super().error(ErrorType.TYPE_ERROR, f"Dot operator used on non-object {var_name}")
             else:
                 if target_value_obj.t == Type.CLOSURE and src_value_obj.t != Type.CLOSURE:
                     target_value_obj.v.type = src_value_obj.t
@@ -495,5 +498,3 @@ class Interpreter(InterpreterBase):
             return (ExecStatus.RETURN, Interpreter.NIL_VALUE)
         value_obj = copy.deepcopy(self.__eval_expr(expr_ast))
         return (ExecStatus.RETURN, value_obj)
-
-
