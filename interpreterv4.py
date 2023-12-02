@@ -30,7 +30,6 @@ class Interpreter(InterpreterBase):
     # into an abstract syntax tree (ast)
     def run(self, program):
         ast = parse_program(program)
-        print(ast)
         self.__set_up_function_table(ast)
         self.env = EnvironmentManager()
         main_func = self.__get_func_by_name("main", 0)
@@ -229,6 +228,8 @@ class Interpreter(InterpreterBase):
                 self.env.set(var_name, src_value_obj)
         else:
             if target_value_obj.t == Type.OBJECT and has_member:
+                if member == "proto" and src_value_obj.type() not in [Type.OBJECT, Type.NIL]:
+                    super().error(ErrorType.TYPE_ERROR, "Assigned proto is not an object")
                 if src_value_obj.type() == Type.OBJECT: #if right side is an object, use direct object
                     setattr(target_value_obj.v, member, self.__eval_expr(assign_ast.get("expression")))
                 else:
@@ -269,8 +270,11 @@ class Interpreter(InterpreterBase):
         var_name = parsed_name[0]
         val = self.env.get(var_name)
         if val is not None:
-            if val.type() == Type.OBJECT and len(parsed_name)>1:
-                return val.value().get_member(parsed_name[1])
+            if len(parsed_name)>1:
+                if val.type() == Type.OBJECT :
+                    return val.value().get_member(parsed_name[1])
+                else:
+                    super().error(ErrorType.TYPE_ERROR, f"Dot operator used on non-object {var_name}")
             return val
         closure = self.__get_func_by_name(var_name, None)
         if closure is None:
