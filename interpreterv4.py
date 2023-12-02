@@ -121,7 +121,7 @@ class Interpreter(InterpreterBase):
             super().error(ErrorType.TYPE_ERROR, f"{obj_name} is not an object")
 
         member_var = target_obj.value().get_member(method_name)
-        if member_var is None:
+        if member_var.type() == Type.NIL:
             super().error(ErrorType.NAME_ERROR, f"Method {obj_name}.{method_name} not found")
         if member_var.type() != Type.CLOSURE:
             super().error(ErrorType.TYPE_ERROR, f"Trying to call non-function/closure")
@@ -189,6 +189,8 @@ class Interpreter(InterpreterBase):
         output = ""
         for arg in call_ast.get("args"):
             result = self.__eval_expr(arg)  # result is a Value object
+            if result.type()==Type.NIL:
+                super().error(ErrorType.NAME_ERROR, "Value doesn't exist")
             output = output + get_printable(result)
         super().output(output)
         return Interpreter.NIL_VALUE
@@ -269,7 +271,6 @@ class Interpreter(InterpreterBase):
         if val is not None:
             if val.type() == Type.OBJECT and len(parsed_name)>1:
                 return val.value().get_member(parsed_name[1])
-                # return getattr(val.value(), parsed_name[1])
             return val
         closure = self.__get_func_by_name(var_name, None)
         if closure is None:
@@ -492,54 +493,3 @@ class Interpreter(InterpreterBase):
         return (ExecStatus.RETURN, value_obj)
 
 
-
-interpreter = Interpreter()
-fail3 = """
-func main() {
-  /* define prototype object */
-  p = @;
-  p.add_foo = lambda() { this.foo = 10; };
-
-  /* define child object c, which inherits from p */
-  c = @;
-  c.proto = p;
-  c.add_foo();
-
-  print(c.foo);  /* prints 10 */
-}
-"""
-
-fail4 = """
-func main() {
-  person = @;
-  person.name = "anon";
-  person.act = lambda() { this.say_hi(); };
-  person.say_hi = lambda() { print(this.name," says hi!"); };
-
-  carey = @;
-  carey.name = "Carey";
-  carey.proto = person;
-  carey.say_hi = lambda() { print(this.name," says hello!"); };
-
-  carey.act(); /* prints "Carey says hello!" */
-}
-"""
-
-program = """
-func main(){
-    p = @;
-    p.x = 10;
-    p.hello = lambda() { print("Hello world!"); };
-
-    c = @;
-    c.proto = p; /* c is a child of p, inherits x and hello() */
-    c.y = 20;    /* c may have its own fields/methods too */
-
-    c.hello(); /* prints "Hello world!" */
-    print(c.x); /* prints 10 */
-    print(c.y); /* prints 20 */
-}
-"""
-
-
-interpreter.run(program)

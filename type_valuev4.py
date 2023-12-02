@@ -27,7 +27,7 @@ class Object:
                 if hasattr(temp.value(), member):
                     return getattr(temp.value(), member)
                 temp = temp.value().proto
-        return None
+        return Value(Type.NIL, None)
 
 
 class Closure:
